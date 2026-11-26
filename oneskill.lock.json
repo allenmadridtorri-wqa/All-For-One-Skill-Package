@@ -1,0 +1,39 @@
+{
+  "package": "all-for-one",
+  "version": "1.0.0",
+  "scope": "workspace",
+  "syncedAt": "2026-11-26T05:27:41.602Z",
+  "targets": {
+    "claude": {
+      "target": "claude",
+      "paths": [
+        "/app/applet/.claude/skills/crazy",
+        "/app/applet/.claude/skills/crazydesigner",
+        "/app/applet/.claude/skills/crazymaker",
+        "/app/applet/.claude/skills/crazycoder"
+      ],
+      "sha256": "2dd35cdb9272ca2f06a900ecd027f7df15d7ecdb650b9c15daee60d538943533"
+    },
+    "antigravity": {
+      "target": "antigravity",
+      "paths": [
+        "/app/applet/.agent/skills/all-for-one",
+        "/app/applet/.agent/workflows/crazy.md",
+        "/app/applet/.agent/workflows/crazydesigner.md",
+        "/app/applet/.agent/workflows/crazymaker.md",
+        "/app/applet/.agent/workflows/crazycoder.md"
+      ],
+      "sha256": "2dd35cdb9272ca2f06a900ecd027f7df15d7ecdb650b9c15daee60d538943533"
+    },
+    "chatgpt": {
+      "target": "chatgpt",
+      "paths": [
+        "/app/applet/.agents/skills/crazy",
+        "/app/applet/.agents/skills/crazydesigner",
+        "/app/applet/.agents/skills/crazymaker",
+        "/app/applet/.agents/skills/crazycoder"
+      ],
+      "sha256": "2dd35cdb9272ca2f06a900ecd027f7df15d7ecdb650b9c15daee60d538943533"
+    }
+  }
+}

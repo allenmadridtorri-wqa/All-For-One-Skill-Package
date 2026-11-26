@@ -1,0 +1,51 @@
+name: all-for-one
+displayName: "All For One — Ultimate AAA Game Development Skill Package"
+version: 1.0.0
+license: Apache-2.0
+description: >-
+  Unified One Skill Package combining 40 years of Hollywood 3D/VFX/Audio mastery
+  (/crazydesigner), 40 years of Rockstar-tier AAA game direction (/crazymaker),
+  and 50 years of principal systems & engine coding (/crazycoder), orchestrated
+  together via /crazy across Claude, Google Antigravity, and ChatGPT/Codex.
+
+commands:
+  - name: crazy
+    skill: skills/crazy/SKILL.md
+    role: "Unified AAA Studio Orchestrator (All For One)"
+    experience: "130 combined years (3D/VFX + AAA Game Dev + Principal Engineering)"
+  - name: crazydesigner
+    skill: skills/crazydesigner/SKILL.md
+    role: "Hollywood 3D Modeling, VFX, Hyperrealistic Scenes & Spatial Audio Director"
+    experience: "40 years"
+  - name: crazymaker
+    skill: skills/crazymaker/SKILL.md
+    role: "Rockstar-Tier AAA Game Director, Systems, AI & Game Feel Architect"
+    experience: "40 years"
+  - name: crazycoder
+    skill: skills/crazycoder/SKILL.md
+    role: "Principal Engine, Graphics, ECS & Zero-GC Systems Architect"
+    experience: "50 years"
+
+targets:
+  claude:
+    workspaceSkillsDir: .claude/skills
+    globalSkillsDir: ~/.claude/skills
+    distDir: dist/claude
+    bundleZip: true
+  antigravity:
+    workspaceSkillsDir: .agent/skills/all-for-one
+    workspaceWorkflowsDir: .agent/workflows
+    globalSkillsDir: ~/.gemini/antigravity/skills/all-for-one
+    globalWorkflowsDir: ~/.gemini/antigravity/global_workflows
+    distDir: dist/antigravity
+  chatgpt:
+    workspaceSkillsDir: .agents/skills
+    globalSkillsDir: ~/.codex/skills
+    distDir: dist/chatgpt
+    customGptBundle: dist/chatgpt/custom-gpt
+
+shared:
+  referencesDir: references
+  scriptsDir: scripts
+  assetsDir: assets
+  evalsDir: evals

@@ -1,0 +1,6 @@
+{
+  "name": "All For One",
+  "description": "Ultimate AAA Game Development One Skill Package for Claude, Antigravity, and ChatGPT/Codex (/crazy, /crazydesigner, /crazymaker, /crazycoder).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

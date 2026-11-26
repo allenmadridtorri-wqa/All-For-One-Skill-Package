@@ -1,0 +1,45 @@
+{
+  "version": "1.0.0",
+  "cases": [
+    {
+      "id": "designer-explicit",
+      "prompt": "/crazydesigner build a hyperrealistic rain-soaked Tokyo alley with ACES lighting, volumetric fog, and spatial rain audio",
+      "expectedSkill": "crazydesigner"
+    },
+    {
+      "id": "designer-implicit",
+      "prompt": "Create a photorealistic 3D coastal cliff scene with PBR water shaders, Gerstner waves, and cinematic camera lighting",
+      "expectedSkill": "crazydesigner"
+    },
+    {
+      "id": "maker-explicit",
+      "prompt": "/crazymaker design a Rockstar-style wanted level system, vehicle drift physics, and enemy squad flanking AI",
+      "expectedSkill": "crazymaker"
+    },
+    {
+      "id": "maker-implicit",
+      "prompt": "Tune combat hitstop, trauma-squared camera shake, coyote time, and NPC vision cones for an open-world action game",
+      "expectedSkill": "crazymaker"
+    },
+    {
+      "id": "coder-explicit",
+      "prompt": "/crazycoder refactor our ECS fixed-timestep loop to eliminate per-frame Vector3 allocations and memory leaks",
+      "expectedSkill": "crazycoder"
+    },
+    {
+      "id": "coder-implicit",
+      "prompt": "Optimize WebGL draw calls with InstancedMesh, zero-GC object pools, and deterministic unit tests for collision math",
+      "expectedSkill": "crazycoder"
+    },
+    {
+      "id": "crazy-explicit",
+      "prompt": "/crazy build a playable AAA cyberpunk hovercar chase game with photorealistic neon reflections, combat AI, and locked 60 FPS",
+      "expectedSkill": "crazy"
+    },
+    {
+      "id": "crazy-implicit",
+      "prompt": "Build an end-to-end playable hyperrealistic 3D AAA open-world stealth game with spatial audio, AI guards, and custom shaders",
+      "expectedSkill": "crazy"
+    }
+  ]
+}
