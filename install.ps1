@@ -1,13 +1,17 @@
-# All For One — Cross-Frontier Windows PowerShell Installer
+# All For One V2 — Cross-Platform Windows PowerShell Installer
 # Usage:
-#   .\install.ps1                 (Installs globally for Claude, Antigravity, ChatGPT/Codex)
-#   .\install.ps1 -Workspace      (Installs into current project workspace)
-#   .\install.ps1 -Target claude  (Installs only for a specific platform)
+#   .\install.ps1                          (Safe global install for all frontiers)
+#   .\install.ps1 -Workspace               (Safe workspace install)
+#   .\install.ps1 -Target claude -DryRun   (Preview Claude install without changes)
+#   .\install.ps1 -Uninstall               (Safe uninstall preserving user files)
 
 param(
   [ValidateSet("all", "claude", "antigravity", "chatgpt")]
   [string]$Target = "all",
-  [switch]$Workspace
+  [switch]$Workspace,
+  [switch]$DryRun,
+  [switch]$Force,
+  [switch]$Uninstall
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,10 +23,9 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 
 $InstallerPath = Join-Path $PSScriptRoot "scripts\install.mjs"
 $ArgsList = @("--target=$Target")
-if ($Workspace) {
-  $ArgsList += "--workspace"
-} else {
-  $ArgsList += "--global"
-}
+if ($Workspace) { $ArgsList += "--workspace" } else { $ArgsList += "--global" }
+if ($DryRun) { $ArgsList += "--dry-run" }
+if ($Force) { $ArgsList += "--force" }
+if ($Uninstall) { $ArgsList += "--uninstall" }
 
 & node $InstallerPath @ArgsList

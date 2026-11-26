@@ -16,7 +16,7 @@ const ROOT_DIR = process.cwd();
 test('canonical All For One skill package passes validation with zero errors', () => {
   const report = validateSkillPackage(ROOT_DIR);
   assert.equal(report.ok, true, JSON.stringify(report.issues, null, 2));
-  assert.equal(report.skillsChecked, 4);
+  assert.equal(report.skillsChecked, 5);
   const errors = report.issues.filter((i) => i.severity === 'error');
   assert.equal(errors.length, 0);
 });
@@ -139,7 +139,7 @@ test('createZipBuffer emits valid PKZIP signature and syncTargets writes all 3 f
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'afo-test-'));
   try {
     // Copy canonical package folders into temp dir
-    for (const dir of ['skills', 'references', 'scripts', 'assets', 'evals']) {
+    for (const dir of ['skills', 'references', 'scripts', 'assets', 'evals', 'core']) {
       fs.cpSync(path.join(ROOT_DIR, dir), path.join(tmpDir, dir), { recursive: true });
     }
 
@@ -149,10 +149,12 @@ test('createZipBuffer emits valid PKZIP signature and syncTargets writes all 3 f
     assert.ok(built.artifacts.includes('dist/chatgpt/custom-gpt/all-for-one-knowledge.zip'));
 
     const synced = syncTargets({ rootDir: tmpDir, target: 'all', global: false });
-    assert.ok(fs.existsSync(synced.lockFile));
+    assert.ok(fs.existsSync(synced.manifestPath));
     assert.ok(fs.existsSync(path.join(tmpDir, '.claude/skills/crazy/SKILL.md')));
+    assert.ok(fs.existsSync(path.join(tmpDir, '.claude/skills/crazyqa/SKILL.md')));
     assert.ok(fs.existsSync(path.join(tmpDir, '.claude/skills/crazydesigner/SKILL.md')));
     assert.ok(fs.existsSync(path.join(tmpDir, '.agent/workflows/crazy.md')));
+    assert.ok(fs.existsSync(path.join(tmpDir, '.agent/workflows/crazyqa.md')));
     assert.ok(fs.existsSync(path.join(tmpDir, '.agent/skills/all-for-one/references/photoreal-lighting-aces.md')));
     assert.ok(fs.existsSync(path.join(tmpDir, '.agents/skills/crazycoder/SKILL.md')));
   } finally {

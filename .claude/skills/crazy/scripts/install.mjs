@@ -1,129 +1,78 @@
 #!/usr/bin/env node
 /**
- * All For One — Zero-Dependency Node.js Installer
- * Installs /crazy, /crazydesigner, /crazymaker, and /crazycoder for:
- *   - Claude (~/.claude/skills or .claude/skills)
- *   - Google Antigravity (~/.gemini/antigravity/ or .agent/)
- *   - ChatGPT / OpenAI Codex (~/.codex/skills or .agents/skills)
- *
- * Works with plain Node.js >= 18 without requiring npm install or tsx.
+ * All For One — Cross-Platform Installer CLI
+ * Delegates directly to the single canonical engine in core/installer-engine.mjs.
  */
 
-import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { safeInstall, safeUninstall } from '../core/installer-engine.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ROOT_DIR = path.resolve(__dirname, '..');
-const COMMANDS = ['crazy', 'crazydesigner', 'crazymaker', 'crazycoder'];
+const SOURCE_ROOT = path.resolve(__dirname, '..');
 
-function parseArgs(argv) {
+function parseCliArgs(argv) {
   const args = new Set(argv);
   const targetArg = argv.find((a) => a.startsWith('--target='));
   const target = targetArg ? targetArg.split('=')[1] : 'all';
+  const dryRun = args.has('--dry-run');
+  const force = args.has('--force');
+  const uninstall = args.has('--uninstall');
   const global = args.has('--global') || !args.has('--workspace');
-  return { target, global };
-}
-
-function copyDir(src, dest) {
-  if (!fs.existsSync(src)) return;
-  fs.mkdirSync(dest, { recursive: true });
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const s = path.join(src, entry.name);
-    const d = path.join(dest, entry.name);
-    if (entry.isDirectory()) copyDir(s, d);
-    else fs.copyFileSync(s, d);
-  }
-}
-
-function cleanDir(dir) {
-  fs.rmSync(dir, { recursive: true, force: true });
-  fs.mkdirSync(dir, { recursive: true });
-}
-
-function copyVault(dest) {
-  for (const folder of ['references', 'scripts', 'assets']) {
-    const src = path.join(ROOT_DIR, folder);
-    if (fs.existsSync(src)) copyDir(src, path.join(dest, folder));
-  }
-}
-
-function extractDescriptionAndBody(markdown) {
-  const m = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-  if (!m) return { description: 'All For One skill workflow.', body: markdown };
-  const descMatch = m[1].match(/description:\s*(?:>-|>)?\s*\r?\n((?:\s+.*\r?\n?)*)/);
-  const singleDesc = m[1].match(/description:\s*["']?([^\r\n"']+)["']?/);
-  const description = descMatch
-    ? descMatch[1].replace(/\s+/g, ' ').trim()
-    : singleDesc
-      ? singleDesc[1].trim()
-      : 'All For One skill workflow.';
-  return { description, body: m[2].trim() };
-}
-
-function installClaude(baseDir) {
-  for (const cmd of COMMANDS) {
-    const dest = path.join(baseDir, cmd);
-    cleanDir(dest);
-    copyDir(path.join(ROOT_DIR, 'skills', cmd), dest);
-    if (cmd === 'crazy') copyVault(dest);
-  }
-  console.log(`[Claude] Installed /crazy, /crazydesigner, /crazymaker, /crazycoder -> ${baseDir}`);
-}
-
-function installAntigravity(skillDest, workflowDir) {
-  cleanDir(skillDest);
-  copyDir(path.join(ROOT_DIR, 'skills', 'crazy'), skillDest);
-  copyVault(skillDest);
-  fs.mkdirSync(workflowDir, { recursive: true });
-  for (const cmd of COMMANDS) {
-    const raw = fs.readFileSync(path.join(ROOT_DIR, 'skills', cmd, 'SKILL.md'), 'utf8');
-    const { description, body } = extractDescriptionAndBody(raw);
-    const wf = `---\ndescription: ${description}\n---\n\n${body}\n`;
-    fs.writeFileSync(path.join(workflowDir, `${cmd}.md`), wf);
-  }
-  console.log(`[Antigravity] Installed skill -> ${skillDest}`);
-  console.log(`[Antigravity] Installed workflows -> ${workflowDir}`);
-}
-
-function installChatGPT(baseDir) {
-  for (const cmd of COMMANDS) {
-    const dest = path.join(baseDir, cmd);
-    cleanDir(dest);
-    copyDir(path.join(ROOT_DIR, 'skills', cmd), dest);
-    if (cmd === 'crazy') copyVault(dest);
-  }
-  console.log(`[ChatGPT/Codex] Installed /crazy, /crazydesigner, /crazymaker, /crazycoder -> ${baseDir}`);
+  const help = args.has('--help') || args.has('-h');
+  return { target, dryRun, force, uninstall, global, help };
 }
 
 function main() {
-  const { target, global } = parseArgs(process.argv.slice(2));
-  const home = os.homedir();
-  const cwd = process.cwd();
-  const targets = target === 'all' ? ['claude', 'antigravity', 'chatgpt'] : [target];
+  const opts = parseCliArgs(process.argv.slice(2));
+  if (opts.help) {
+    console.log(`All For One V2 Safe Installer
 
-  console.log(`Installing "All For One" (${global ? 'global' : 'workspace'} scope)...`);
+Usage:
+  node scripts/install.mjs [options]
 
-  if (targets.includes('claude')) {
-    installClaude(global ? path.join(home, '.claude', 'skills') : path.join(cwd, '.claude', 'skills'));
+Options:
+  --global               Install to user home directories (default)
+  --workspace            Install into current working directory
+  --target=<name>        claude | antigravity | chatgpt | all (default: all)
+  --dry-run              Preview planned changes without writing files
+  --force                Overwrite user-modified owned files (creates backup first)
+  --uninstall            Safely remove only package-owned unmodified files
+`);
+    return;
   }
-  if (targets.includes('antigravity')) {
-    installAntigravity(
-      global
-        ? path.join(home, '.gemini', 'antigravity', 'skills', 'all-for-one')
-        : path.join(cwd, '.agent', 'skills', 'all-for-one'),
-      global
-        ? path.join(home, '.gemini', 'antigravity', 'global_workflows')
-        : path.join(cwd, '.agent', 'workflows'),
+
+  if (opts.uninstall) {
+    const res = safeUninstall({
+      targetRoot: process.cwd(),
+      global: opts.global,
+      dryRun: opts.dryRun,
+      force: opts.force,
+    });
+    console.log(
+      `${opts.dryRun ? '[DRY-RUN] ' : ''}${res.message} (removed=${res.removed.length}, preservedUserModified=${res.skippedUserModified.length})`,
     );
-  }
-  if (targets.includes('chatgpt')) {
-    installChatGPT(global ? path.join(home, '.codex', 'skills') : path.join(cwd, '.agents', 'skills'));
+    return;
   }
 
-  console.log('Done! Restart or refresh your AI agent session to use /crazy, /crazydesigner, /crazymaker, and /crazycoder.');
+  const res = safeInstall({
+    sourceRoot: SOURCE_ROOT,
+    targetRoot: process.cwd(),
+    target: opts.target,
+    global: opts.global,
+    dryRun: opts.dryRun,
+    force: opts.force,
+  });
+
+  console.log(
+    `${opts.dryRun ? '[DRY-RUN] ' : ''}All For One V2 (${res.scope}, targets=${res.targets.join(',')}): ` +
+      `created=${res.summary.created}, updated=${res.summary.updated}, ` +
+      `unchanged=${res.summary.unchanged}, skippedUserModified=${res.summary.skippedUserModified}`,
+  );
+  if (res.backupRoot) {
+    console.log(`Backups saved to: ${res.backupRoot}`);
+  }
 }
 
 main();

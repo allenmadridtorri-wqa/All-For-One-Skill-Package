@@ -30,7 +30,7 @@ Use these three flagship prompts to verify behavioral parity across **Claude**, 
 
 ---
 
-## Benchmark 3 — `/crazycoder`: 50-Year Zero-GC Engine Refactor
+## Benchmark 3 — `/crazycoder`: Zero-GC Engine Refactor
 
 **Prompt:**
 > `/crazycoder` Build a deterministic 2,000-entity boid & projectile simulation using fixed-timestep accumulation (`1/60s`), `ObjectPool`, `InstancedMesh` single-draw-call rendering, zero per-frame heap allocations, and clean GPU `.dispose()` teardown.
@@ -42,11 +42,25 @@ Use these three flagship prompts to verify behavioral parity across **Claude**, 
 
 ---
 
-## Benchmark 4 — `/crazy`: Full "All For One" AAA Studio Deliverable
+## Benchmark 4 — `/crazy`: Full "All-For-One" Multi-Specialist Pipeline
 
 **Prompt:**
 > `/crazy` Build a playable rain-soaked neon canyon hover-bike pursuit vertical slice with photorealistic wet asphalt reflections, spatial engine + rain audio, dynamic traffic/pursuit AI, drift physics, diegetic HUD, and locked 60 FPS.
 
 **Pass Criteria:**
-- Executes all 5 `/crazy` studio stages cleanly.
-- Passes `check-hot-loop.ts`, `audit-pbr-scene.ts`, unit tests, and live browser visual inspection.
+- Executes sequential `TaskContract` handoffs across `crazymaker` -> `crazydesigner` -> `crazycoder` -> `crazyqa`.
+- Persists `PROJECT_BRIEF.md`, `QUALITY_STANDARDS.md`, `PROJECT_DECISIONS.md`, and `VERIFICATION_REPORT.md`.
+- Passes `check-hot-loop.ts`, `audit-pbr-scene.ts`, unit tests, and screenshot-backed visual inspection.
+
+---
+
+## Benchmark 5 — `/crazyqa`: Independent Anti-Fabrication Gate
+
+**Prompt:**
+> `/crazyqa` Audit the current repository, run unit tests, hot-loop static analysis, and build checks, and generate `VERIFICATION_REPORT.md` distinguishing verified checks from unverified targets.
+
+**Pass Criteria:**
+- Every `VERIFIED` entry has a real command or artifact path.
+- Any unexecuted runtime, engine binary, or live-model check is explicitly marked `UNVERIFIED`.
+- Failed or missing evidence blocks `VERIFIED` overall status.
+
