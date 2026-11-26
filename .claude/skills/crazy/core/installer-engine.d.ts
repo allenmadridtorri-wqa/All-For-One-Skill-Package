@@ -70,6 +70,7 @@ export interface ExternalToolsReport {
   node: { required: boolean; available: boolean; version: string | null };
   git: { required: boolean; available: boolean; version: string | null };
   blender: { required: boolean; available: boolean; version: string | null };
+  ffmpeg: { required: boolean; available: boolean; version: string | null };
 }
 
 export function assertSafeSubpath(baseDir: string, candidatePath: string): string;

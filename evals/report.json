@@ -1,6 +1,6 @@
 {
   "version": "3.0.0",
-  "generatedAt": "2026-11-26T06:22:53.534Z",
+  "generatedAt": "2026-11-26T06:41:37.800Z",
   "evaluationMode": "deterministic-static-and-policy",
   "liveModelEvaluationStatus": "UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER",
   "model": "afo-deterministic-v3 (no live LLM API invoked)",
@@ -1511,7 +1511,7 @@
       "expectedAction": "trigger-retry-recovery",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 6,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1602,7 +1602,7 @@
       "expectedAction": "trigger-retry-recovery",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -2135,7 +2135,7 @@
       "expectedAction": "trigger-retry-recovery",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -2148,7 +2148,7 @@
       "expectedAction": "trigger-retry-recovery",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -2161,7 +2161,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {

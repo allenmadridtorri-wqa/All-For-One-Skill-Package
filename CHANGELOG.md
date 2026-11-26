@@ -2,6 +2,21 @@
 
 All notable changes to the **All-For-One Skill Package** are documented in this file.
 
+## [3.1.0] — Single-AI-First Engineering & Creative Production Upgrade
+
+### Added
+- **Single-AI-First Architecture (`core/single-ai.ts`, `references/single-ai-architecture.md`)**: Set **`ECONOMY`** (1 primary AI model, sequential execution, compact context reuse, local deterministic offloading) as the default mode, added **`BALANCED`** (internal lens switching + separate QA phase), and gated **`ACCELERATION`** behind explicit `assertExecutionModeAllowed` user approval.
+- **Dedicated Cinematic Production Engine (`core/cinematic-production.ts`, `references/cinematic-production-engine.md`)**: Structured screenplay beats, multi-scene/shot plans (e.g., 90s @ 24fps = `2,160` frames), dependency tracking, frame-range chunk splitting, atomic checkpoints, missing-frame disk reconciliation (`reconcileShotFramesFromDisk`), resume recovery, and honest `ffmpeg` assembly gating (`buildVideoAssemblyPlan`).
+- **Cloud & Google Colab GPU Rendering (`core/cloud-rendering.ts`, `assets/colab/colab_blender_worker.py`, `references/cloud-colab-rendering.md`)**: Added `RemoteRenderProviderRegistry`, hardware offload routing (`evaluateHardwareRenderRouting`), SHA-256 asset manifest packaging, Drive-backed `.ipynb` notebook generation, resumable GPU-else-CPU Colab worker, and PNG magic-byte verification (`reconcileRemoteRenderOutputs`).
+- **Engineering Structure, Feasibility & Status Gates (`core/engineering-intelligence.ts`)**: Added `analyzeProjectStructure`, `assessTechnicalFeasibility`, and `ImplementationStatusTracker` blocking unverified `IMPLEMENTED -> VERIFIED` transitions without executed tests.
+- **Compact Recovery Memory & Immutable Decisions (`core/production-memory.ts`)**: Added `buildCompactContextSummary()`, immutable decision IDs, and known-bug, task-progress, build-history, and asset-reference tracking.
+- **CLI & Documentation**: Added `single-ai-check`, `colab-check`, and `cinematic-plan` CLI subcommands (`scripts/afo.ts`), `scripts/v3_1-framework.test.ts`, and comprehensive V3.1 guides (`docs/*.md`, `MIGRATION_V3_TO_V3_1.md`).
+
+### Fixed & Security-Hardened
+- **Blender Bridge Python Injection & Confinement (`core/blender-bridge.ts`, `assets/blender/export_engine_asset.py`)**: Replaced unsafe `r"..."` path interpolation with `serializePythonString()` (`JSON.stringify`), `validateBlenderWorkspacePath()` newline/traversal/root confinement, and Python `--base-dir` `os.path.realpath` enforcement; added LODs, Smart UV, IK/FK + facial armatures, cloth/hair, volumetrics, compositor glare, tracked camera keyframes, and `splitFrameRange` / `findMissingFramesInRange`.
+- **Windows PowerShell & ESM Compatibility (`install.ps1`, `core/installer-engine.mjs`, `scripts/*.ts`)**: Added `-Yes`, `-Verify`, `-CheckTools` to `install.ps1` with `-Force -Yes` parity and `$LASTEXITCODE` propagation; added `EPERM`/`EBUSY`/`EACCES` rename retry in `atomicWriteFileSync`, Windows Blender install folder probing, `ffmpeg` probing, and `pathToFileURL` ESM entrypoints.
+- **Provider Error Credential Redaction & Response Caching (`core/model-adapter.ts`)**: Added SHA-256 prompt response caching and `redactSecrets()` sanitization on provider error fallbacks across OpenAI-compatible, Anthropic-compatible, Google-compatible, and local HTTP adapters.
+
 ## [3.0.0] — V3 Advanced Engineering Upgrade
 
 ### Added

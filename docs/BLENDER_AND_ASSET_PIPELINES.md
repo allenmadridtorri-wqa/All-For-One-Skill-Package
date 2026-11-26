@@ -1,69 +1,54 @@
-# Blender Automation & Game-Engine Asset Pipelines (All-For-One V3)
+# Blender Automation & Game-Engine Asset Pipelines (All-For-One V3.1)
 
-All-For-One V3 upgrades `/crazydesigner` and `/crazyqa` with deterministic headless Blender Python (`bpy`) automation, hardware-bounded rendering, and multi-engine 3D asset validation. **Blender is an optional external dependency**: All-For-One never assumes Blender is installed and never attempts to auto-install it.
+All-For-One V3.1 upgrades `/crazydesigner` and `/crazyqa` with **injection-hardened** headless Blender Python (`bpy`) automation, expanded Toggle Studio parameterized scene/motion templates, frame-range chunk splitting, and multi-engine 3D asset validation. **Blender remains an optional external dependency**: All-For-One never assumes Blender is installed and never attempts to auto-install it locally.
 
 ---
 
-## 1. Checking Optional Blender Availability
+## 1. Checking Optional Blender & FFmpeg Availability
 
 ```bash
 node scripts/install.mjs --check-tools
-# or via core API:
-# detectBlenderInstallation() -> { available, binary, version, majorMinor, status, note }
+# Checks PATH, BLENDER_PATH, BLENDER_BIN, Windows "C:\Program Files\Blender Foundation\Blender *", and macOS /Applications/Blender.app
 ```
 
-- When `blender` is installed (recommended **Blender 4.0+**), `runBlenderPythonScript()` executes headless background scripts safely via `execFileSync('blender', ['--background', '--factory-startup', '--python-exit-code', '1', '--python', safeScript])`.
-- When `blender` is unavailable, script generation (`generateBlenderAutomationScript`) and offline asset/render validation still function, while runtime Blender execution honestly reports `status: 'UNVERIFIED'`.
+- When `blender` is installed (recommended **Blender 4.0+**), `runBlenderPythonScript()` executes headless background scripts safely via `execFileSync`.
+- When `blender` is unavailable, script generation (`generateBlenderAutomationScript`), Colab GPU offloading (`core/cloud-rendering.ts`), and offline GLB/FBX validation still function, while local Blender execution honestly reports `status: 'UNVERIFIED'`.
 
 ---
 
-## 2. Generated `bpy` Automation Features (`core/blender-bridge.ts`)
+## 2. Security & Path Confinement (V3.1 Hardening)
 
-`generateBlenderAutomationScript(spec, hardware)` produces deterministic Blender scripts enforcing:
-- **Metric 1:1 Scale:** `scene.unit_settings.system = 'METRIC'`, `scale_length = 1.0`, applied object transforms.
-- **Procedural Modeling & Geometry Nodes:** Attaches a `GeometryNodeTree` (`Nodes` modifier) with `GeometryNodeSubdivisionSurface` when `useGeometryNodes !== false`.
-- **Calibrated PBR Materials:** Builds node-based `Principled BSDF` materials within realistic dielectric/metallic ranges.
-- **Studio Lighting & Camera:** Adds key `SUN` + fill `AREA` light, grounding plane, and framed camera.
-- **Optional Rigging & Physics:** Adds Armature setup (`createArmatureRig: true`) and rigid-body active/passive physics (`enablePhysicsSim: true`).
-- **Hardware-Bounded Rendering:** Automatically clamps resolution (`<= 960px` on constrained hardware, `<= 1920px` otherwise) and Cycles/EEVEE sample counts (`<= 32` constrained, `<= 128` standard) with `Filmic` color management and Cycles denoising.
+- **`validateBlenderWorkspacePath(candidatePath, workspaceDir?)`:** Blocks `..` traversal, null bytes, newline characters (`\r`/`\n`), and arbitrary system absolute paths outside `workspaceDir` / `os.tmpdir()` / `cwd`.
+- **`serializePythonString()`:** Serializes all injected strings via `JSON.stringify` instead of unsafe raw `r"..."` interpolation, eliminating quote or newline breakout inside generated `.py` scripts.
+- **Python-Side Enforcement:** Generated scripts resolve every `.blend`, render, and export path through `_resolve_safe_path()` (`os.path.realpath`), and `assets/blender/export_engine_asset.py` enforces `--base-dir` confinement.
 
 ---
 
-## 3. Standalone CLI Asset Export Helper
+## 3. Expanded Procedural `bpy` Capabilities (`core/blender-bridge.ts`)
 
-Use `assets/blender/export_engine_asset.py` inside any existing `.blend` scene:
+`generateBlenderAutomationScript(spec, hardware, workspaceDir)` supports asset categories (`environment`, `hard-surface`, `character`, `creature`, `architecture`, `vehicle`, `prop`, `cinematic-shot`) with:
+- **Metric 1:1 Scale & Smart UV:** `scene.unit_settings.scale_length = 1.0`, applied transforms, and `bpy.ops.uv.smart_project`.
+- **Geometry Nodes & Automated LOD Chains:** Optional `GeometryNodeSubdivisionSurface` plus `LOD1` (50%) and `LOD2` (20%) decimate modifiers (`generateLods: true`).
+- **Procedural PBR Shader Graph:** `ShaderNodeTexNoise` -> `ShaderNodeValToRGB` roughness variation + `ShaderNodeBump` normal relief wired into `Principled BSDF`.
+- **Three-Point Lighting, Tracked Cameras & Choreography:** `SUN` + `AREA` + `SPOT` lights, depth-of-field tracking (`TRACK_TO` constraint), focal length/f-stop controls, and start/end keyframes (`static`, `orbit`, `dolly`, `crane`, `track-to`).
+- **Character Rigs, Physics & Atmosphere:** Optional Armature with `IK_Target_Hand` and `Head_Jaw` facial bones, `AFO_ClothSim`, `AFO_HairParticles`, rigid-body physics, `ShaderNodeVolumePrincipled` volumetric domain (`volumetricFog`), and `CompositorNodeGlare` (`FOG_GLOW`) bloom.
+- **Hardware-Clamped Cycles / EEVEE Fallback & Frame Splitting:** Clamps constrained 4GB/CPU laptops (`<= 960x540`, `<= 32` samples, `CPU` fallback) and exposes `splitFrameRange()` + `findMissingFramesInRange()` for recoverable batch rendering.
+
+---
+
+## 4. Standalone CLI Export & Engine Validation
 
 ```bash
 blender --background --factory-startup scene.blend \
   --python-exit-code 1 \
   --python assets/blender/export_engine_asset.py -- \
-  --engine=unreal5 --format=fbx --out=exports/hero.fbx
+  --base-dir=. --engine=unreal5 --format=fbx --out=exports/hero.fbx
 ```
 
----
-
-## 4. Target Engine Export Calibration (`core/asset-pipeline.ts`)
-
-| Engine | Preferred Format | Axes | Key Export Rules |
+| Engine | Preferred Format | Axes | Key Export Rules (`core/asset-pipeline.ts`) |
 | :--- | :--- | :--- | :--- |
-| **`unreal5`** | `.fbx` | `Z`-up, `-Y` forward | `mesh_smooth_type='FACE'`, `add_leaf_bones=False`, `FBX_SCALE_UNITS`, max 8 bone influences |
-| **`unity`** | `.fbx` | `Y`-up, `-Z` forward | Clamp skin weights `<= 4` bones/vertex, freeze non-uniform scale, MikkTSpace tangents |
-| **`godot`** | `.glb` | `Y`-up, `-Z` forward | Binary glTF 2.0 with packed `metallicRoughness`, applied transforms, verified animation tracks |
-| **`threejs`** | `.glb` | `Y`-up, `-Z` forward | `<= 4` material slots per hero prop, PoT textures (`<= 2048px`), `1 unit = 1m` |
-| **`cpp-native`** | `.glb` | `Y`-up, `-Z` forward | Indexed triangle buffers ready for `cgltf` / `meshoptimizer` |
-| **`rust`** | `.glb` | `Y`-up, `-Z` forward | Bevy PBR `.glb` with `TEXCOORD_0`, vertex normals, skins, and `NamedAnimations` |
-
-### Automated Validation (`validateExportedAsset`)
-- **`.glb` / `.gltf`:** Parses glTF 2.0 JSON/binary chunks and checks mesh count (`> 0`), `TEXCOORD_0` UVs, vertex `NORMAL` attributes, PBR materials, skins/animations, and node scale `(1,1,1)` compliance.
-- **`.fbx`:** Verifies `Kaydara FBX Binary` or ASCII `; FBX` signatures and honestly flags deep bone/UV inspection as `PARTIALLY_VERIFIED` unless verified inside Blender or the target engine importer.
-
----
-
-## 5. Visual Iteration Loop (`core/visual-iteration.ts`)
-
-`VisualIterationController` structures `/crazydesigner` visual refinement across:
-`CREATE` -> `RENDER` -> `INSPECT` -> `DIAGNOSE` -> `IMPROVE` -> `RE_RENDER`
-
-- Validates image signatures (PNG `89 50 4E 47`, JPEG `FF D8 FF`, WEBP `RIFF...WEBP`).
-- Rejects existence-only checks without visual acceptance criteria (`PARTIALLY_VERIFIED`, never `VERIFIED`).
-- Tracks `bestVerifiedRender` and stops cleanly on target score met, max iterations, or plateau.
+| **`unreal5`** | `.fbx` | `Z`-up, `-Y` forward | `mesh_smooth_type='FACE'`, `add_leaf_bones=False`, `FBX_SCALE_UNITS` |
+| **`unity`** | `.fbx` | `Y`-up, `-Z` forward | Clamp skin weights `<= 4` bones/vertex, MikkTSpace tangents |
+| **`godot`** | `.glb` | `Y`-up, `-Z` forward | Binary glTF 2.0 with packed `metallicRoughness` and animations |
+| **`threejs`** | `.glb` | `Y`-up, `-Z` forward | `<= 4` material slots per prop, PoT textures (`<= 2048px`), `1u = 1m` |
+| **`cpp-native` / `rust`** | `.glb` | `Y`-up, `-Z` forward | Indexed buffers, `TEXCOORD_0`, normals, skins, `NamedAnimations` |

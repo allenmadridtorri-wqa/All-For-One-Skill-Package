@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 export interface SkillFrontmatter {
   name?: string;
@@ -212,7 +213,7 @@ export function validateSkillPackage(rootDir: string): ValidationReport {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const root = process.cwd();
   const report = validateSkillPackage(root);
   console.log(`Checked ${report.skillsChecked} skill(s).`);

@@ -1,51 +1,40 @@
-# Security Audit & Hardening Report — All-For-One V3
+# Security Audit & Hardening Report — All-For-One V3.1
 
-This document records the security vulnerabilities identified during the V3 audit of All-For-One V2, the concrete mitigations implemented in V3, and the automated security verification coverage.
+This document records the security vulnerabilities identified and resolved across V3 and **V3.1**, including the V3.1 audit of Blender automation, remote GPU packaging, model adapter error paths, and Windows PowerShell installer parity.
 
 ---
 
-## 1. Vulnerabilities Identified in V2 Audit
+## 1. Security Vulnerabilities Identified & Resolved in V3.1 Audit
 
-| ID | Severity | Component | Finding |
+| ID | Severity | Component | Finding & V3.1 Resolution |
 | :--- | :--- | :--- | :--- |
-| `SEC-01` | **High** | `core/installer-engine.mjs` | `assertSafeSubpath` checked lexical `path.resolve` containment only; an existing symlink inside `.claude/`, `.agent/`, or `.agents/` pointing outside the workspace root could escape containment during file reads/writes. |
-| `SEC-02` | **Medium** | `core/installer-engine.mjs`, `core/production-memory.ts`, `core/production-intelligence.ts` | Direct `fs.writeFileSync` calls could leave truncated/corrupt manifests, memory ledgers, or checkpoints on mid-write interruption and lacked cooperative locking against concurrent processes. |
-| `SEC-03` | **Medium** | `core/production-intelligence.ts` | `RenderSafetyManager` accepted caller-supplied relative paths without enforcing `assertSafeSubpathSync` confinement and lacked corruption-free atomic writes. |
-| `SEC-04` | **High** | `core/production-memory.ts` | `ProductionMemoryLedger` wrote free-form decision/iteration notes to disk without scrubbing accidental API keys, tokens, PEM blocks, or DB credentials, and had no integrity checksum to detect file tampering/corruption. |
-| `SEC-05` | **Medium** | `core/installer-engine.mjs`, `scripts/install.mjs` | Destructive `--force` overwrites did not support explicit confirmation gating (`requireApprovalForForce` / `--yes`), and installers lacked post-install SHA-256 manifest verification (`--verify`). |
-| `SEC-06` | **Medium** | `core/qa-verification.ts` | QA pipeline lacked an automated workspace secret scanner (`scanForSecrets`) and lacked verification helpers for Blender command sandboxing and exported 3D asset integrity. |
+| `SEC-31-01` | **High** | `core/blender-bridge.ts` | **V3 Weakness:** Interpolated paths directly into Python raw strings (`r"${spec.blendOutputPath}"`), allowing quote (`"`), newline (`\n`), or code-injection breakout if a caller supplied an untrusted filename. **V3.1 Fix:** Replaced all template interpolation with `serializePythonString()` (`JSON.stringify` + null-byte rejection) and enforced `validateBlenderWorkspacePath()` (blocks `\r`/`\n`, `..`, and paths outside `workspaceDir` / `os.tmpdir()` / `cwd`) plus Python-side `_resolve_safe_path()` `os.path.realpath` enforcement. |
+| `SEC-31-02` | **Medium** | `assets/blender/export_engine_asset.py` | **V3 Weakness:** Export script wrote to `--out` directly without checking base directory bounds. **V3.1 Fix:** Added `--base-dir` CLI confinement using `os.path.realpath` boundary checks before exporting `.fbx` / `.glb` / `.gltf`. |
+| `SEC-31-03` | **Medium** | `core/model-adapter.ts` | **V3 Weakness:** Network or provider errors passed through to fallback notes could inadvertently echo request headers or token strings. **V3.1 Fix:** Sanitized all caught provider exceptions with `redactSecrets()` before building response notes, and required `envApiKeyName` env-var lookup rather than literal key parameters. |
+| `SEC-31-04` | **Medium** | `install.ps1` | **V3 Weakness:** `install.ps1` omitted `-Yes` forwarding even though V3 `scripts/install.mjs` blocked `--force` without `--yes`, breaking safe Windows forced updates. **V3.1 Fix:** Added `-Yes`, `-Verify`, `-CheckTools`, explicit `-Force` requires `-Yes` validation, and `$LASTEXITCODE` exit-code forwarding. |
+| `SEC-31-05` | **Low** | `core/production-memory.ts` | **V3 Weakness:** Repeated decision calls with the same ID could append duplicate decision entries. **V3.1 Fix:** Locked decision IDs in `.afo-memory-state.json` so duplicate `DecisionEntry.id` calls throw explicitly, enforcing append-only superseding decisions. |
 
 ---
 
-## 2. Mitigations Implemented in V3
+## 2. Preserved V3 Security Architecture
 
-1. **Symlink-Aware Path Confinement (`core/security.ts#assertSafeSubpathSync` & `core/installer-engine.mjs#assertSafeSubpath`)**:
-   - Rejects empty paths, null bytes (`\0`), filesystem root targets, and lexical `..` escapes.
-   - Walks existing path segments from `baseDir` to target using `fs.lstatSync` and verifies every symlink's `fs.realpathSync` stays within `realBase`.
-   - Applied consistently across installer operations, `RenderSafetyManager`, `ProductionMemoryLedger`, `blender-bridge.ts`, `asset-pipeline.ts`, and `visual-iteration.ts`.
-2. **Atomic File Writes & Advisory Locking (`core/security.ts#atomicWriteFileSync`, `withAdvisoryLock`)**:
-   - Writes payloads to a temporary sibling file (`<name>.tmp-<pid>-<rand>`) before calling `fs.renameSync`.
-   - Protects installer writes (`.afo-install.lock`) and memory ledger updates (`.afo-memory/.afo-memory.lock`) with exclusive `wx` lockfiles and automatic stale-lock recovery (`> 30s`).
-3. **Secret Scanning & Automatic Ledger Redaction (`core/security.ts#redactSecrets`, `scanForSecrets`)**:
-   - Detects Google/Gemini (`AIza...`), OpenAI/Stripe (`sk-...`), GitHub (`ghp_`/`gho_`/etc.), AWS (`AKIA...`), `Bearer` tokens, PEM private keys, and DB credential URIs.
-   - `ProductionMemoryLedger` passes all persisted markdown records through `redactSecrets()` on every write and tracks SHA-256 hashes in `.afo-memory-state.json` (`verifyIntegrity()`).
-   - `runSecuritySecretScan()` integrates directly into `crazyqa` reporting (`scripts/afo.ts qa-report`).
-4. **Destructive Action Confirmation & Dangerous Command Detection**:
-   - `assertDestructiveApproved()` requires `{ approved: true, actor, reason }` for guarded destructive operations.
-   - `scripts/install.mjs` enforces `--yes` whenever `--force` is passed.
-   - `isDangerousShellCommand()` flags unapproved `rm -rf`, `git reset --hard`, `git push --force`, `mkfs.`, `dd if=`, and `DROP TABLE`/`DROP DATABASE`.
-5. **Sandboxed Blender CLI Invocation (`core/blender-bridge.ts#buildBlenderCliArgs`)**:
-   - Uses `execFileSync` (argument array, no shell interpolation) with `--background --factory-startup --python-exit-code 1` and path-confined script/blend paths.
+All V3 baseline controls (`SEC-01` through `SEC-06`) remain enforced in V3.1:
+1. **Symlink-Aware Path Confinement (`core/security.ts#assertSafeSubpathSync`, `core/installer-engine.mjs#assertSafeSubpath`)**: Walks every path segment with `fs.lstatSync` + `fs.realpathSync` to block symlink escapes across installers, memory ledgers, Blender bridges, Colab packagers, and shot render trackers.
+2. **Atomic File Writes & Advisory Locking (`atomicWriteFileSync`, `withAdvisoryLock`)**: Uses temp-sibling + rename (with Windows `EPERM`/`EBUSY`/`EACCES` retry backoff in `core/installer-engine.mjs`) and stale-lock-safe `wx` locks.
+3. **Secret Scanning & Automatic Redaction (`redactSecrets`, `scanForSecrets`)**: Scans source and ledger outputs for API keys, Bearer tokens, PEM private keys, and credential URIs.
+4. **Destructive Action Guards (`assertDestructiveApproved`, `isDangerousShellCommand`)**: Requires explicit approval before `--force` or multi-agent `ACCELERATION` escalation.
 
 ---
 
-## 3. Verification Status
+## 3. Remaining Residual Security Caveats
 
-- Unit tests in `scripts/v3-framework.test.ts` verify:
-  - Symlink escape rejection (`assertSafeSubpathSync`)
-  - Exclusive lock contention handling (`withAdvisoryLock`)
-  - Secret redaction & pattern detection (`redactSecrets`, `scanForSecrets`, `ProductionMemoryLedger`)
-  - Unapproved destructive force-overwrite rejection (`requireApprovalForForce`)
-  - SHA-256 install integrity verification & tamper detection (`verifyInstallIntegrity`)
-  - Ledger file corruption detection (`verifyIntegrity`)
-- Workspace secret scan (`runSecuritySecretScan` across `core/`) executes as part of `npm run afo:qa`.
+- Generated `.ipynb` / Python render scripts executed externally by the user on **Google Colab** or local **Blender** run under the user's host or Colab Python environment; always review custom `.blend` scene files before running headless scripts from untrusted third parties (`--factory-startup` disables user add-ons but `.blend` driver expressions still require standard `--disable-autoexec` caution if untrusted).
+- Windows PowerShell execution of `install.ps1` could not run natively inside this Linux test container and is verified statically + via shared `core/installer-engine.mjs` unit tests.
+
+---
+
+## 4. Automated Verification Evidence
+
+- `scripts/v3-framework.test.ts`: Verifies symlink escape blocking, advisory locks, secret scrubbing, `--force` approval gating, SHA-256 install integrity, and ledger tamper detection.
+- `scripts/v3_1-framework.test.ts`: Verifies Blender path/newline/quote breakout rejection, `export_engine_asset.py` `--base-dir` confinement, `ConfigurableModelAdapter` error credential redaction, `ProductionMemoryLedger` decision immutability, `install.ps1` parameter parity, and PNG magic-byte verification.
+- Repository-wide secret scan (`runSecuritySecretScan`): `0` findings across canonical core/script/asset files.

@@ -35,7 +35,7 @@ function parseCliArgs(argv) {
 function main() {
   const opts = parseCliArgs(process.argv.slice(2));
   if (opts.help) {
-    console.log(`All For One V3 Safe Installer
+    console.log(`All For One V3.1 Safe Installer
 
 Usage:
   node scripts/install.mjs [options]
@@ -49,7 +49,7 @@ Options:
   --yes                  Confirm destructive --force overwrite operations
   --uninstall            Safely remove only package-owned unmodified files
   --verify               Verify SHA-256 integrity of installed files against manifest
-  --check-tools          Detect Node.js, Git, and optional Blender availability
+  --check-tools          Detect Node.js, Git, and optional Blender / FFmpeg availability
 `);
     return;
   }
@@ -59,7 +59,8 @@ Options:
     console.log('External Tools Availability:');
     console.log(`  node:    ${tools.node.available ? `AVAILABLE (${tools.node.version})` : 'MISSING (REQUIRED)'}`);
     console.log(`  git:     ${tools.git.available ? `AVAILABLE (${tools.git.version})` : 'NOT FOUND (optional)'}`);
-    console.log(`  blender: ${tools.blender.available ? `AVAILABLE (${tools.blender.version})` : 'NOT FOUND (optional 3D/Blender automation unavailable)'}`);
+    console.log(`  blender: ${tools.blender.available ? `AVAILABLE (${tools.blender.version})` : 'NOT FOUND (optional local 3D/Blender rendering unavailable; remote Colab supported)'}`);
+    console.log(`  ffmpeg:  ${tools.ffmpeg.available ? `AVAILABLE (${tools.ffmpeg.version})` : 'NOT FOUND (optional video assembly unavailable)'}`);
     return;
   }
 

@@ -284,6 +284,48 @@
       "tags": ["fbx", "gltf", "glb", "uv", "normals", "rig", "scale", "export", "import", "asset-pipeline"],
       "dependencies": ["blender-automation-pipeline"],
       "estimatedTokens": 480
+    },
+    {
+      "id": "single-ai-architecture",
+      "path": "references/single-ai-architecture.md",
+      "title": "Single-AI-First Architecture & Low-Usage Engineering (V3.1)",
+      "version": "3.1.0",
+      "sourceType": "architecture-spec",
+      "verifiedForVersion": "All-For-One 3.1.0",
+      "lastVerifiedDate": "2026-11-25",
+      "specialists": ["crazy", "crazymaker", "crazydesigner", "crazycoder", "crazyqa"],
+      "engines": ["all"],
+      "tags": ["single-ai", "economy", "balanced", "acceleration", "budget", "tokens", "caching", "model-adapter"],
+      "dependencies": ["qa-verification-standards"],
+      "estimatedTokens": 390
+    },
+    {
+      "id": "cinematic-production-engine",
+      "path": "references/cinematic-production-engine.md",
+      "title": "Cinematic Production Engine & Toggle Studio Choreography (V3.1)",
+      "version": "3.1.0",
+      "sourceType": "architecture-spec",
+      "verifiedForVersion": "All-For-One 3.1.0 / Blender 4.x",
+      "lastVerifiedDate": "2026-11-25",
+      "specialists": ["crazydesigner", "crazymaker", "crazyqa"],
+      "engines": ["all"],
+      "tags": ["cinematic", "screenplay", "storyboard", "shots", "frames", "ffmpeg", "toggle-studio", "trailer", "choreography"],
+      "dependencies": ["blender-automation-pipeline", "visual-production-pipeline"],
+      "estimatedTokens": 410
+    },
+    {
+      "id": "cloud-colab-rendering",
+      "path": "references/cloud-colab-rendering.md",
+      "title": "Cloud & Google Colab GPU Rendering Pipeline (V3.1)",
+      "version": "3.1.0",
+      "sourceType": "architecture-spec",
+      "verifiedForVersion": "All-For-One 3.1.0 / Colab + Blender 4.x",
+      "lastVerifiedDate": "2026-11-25",
+      "specialists": ["crazydesigner", "crazycoder", "crazyqa"],
+      "engines": ["all"],
+      "tags": ["colab", "google-colab", "cloud", "gpu", "drive", "offload", "render", "checkpoint", "resume"],
+      "dependencies": ["blender-automation-pipeline", "cinematic-production-engine"],
+      "estimatedTokens": 380
     }
   ]
 }

@@ -56,7 +56,26 @@ function atomicWriteFileSync(targetPath, data) {
   );
   try {
     fs.writeFileSync(tempPath, data);
-    fs.renameSync(tempPath, targetPath);
+    let lastErr = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        fs.renameSync(tempPath, targetPath);
+        lastErr = null;
+        break;
+      } catch (renameErr) {
+        lastErr = renameErr;
+        if (
+          process.platform === 'win32' &&
+          renameErr &&
+          (renameErr.code === 'EPERM' || renameErr.code === 'EBUSY' || renameErr.code === 'EACCES')
+        ) {
+          // Windows antivirus / indexer transient handle contention
+          continue;
+        }
+        throw renameErr;
+      }
+    }
+    if (lastErr) throw lastErr;
   } catch (err) {
     if (fs.existsSync(tempPath)) {
       try {
@@ -696,9 +715,37 @@ export function detectExternalTools() {
     }
   };
 
+  const probeBlender = () => {
+    const candidates = [];
+    if (process.env.BLENDER_PATH) candidates.push(process.env.BLENDER_PATH);
+    if (process.env.BLENDER_BIN) candidates.push(process.env.BLENDER_BIN);
+    candidates.push('blender');
+    if (process.platform === 'win32') {
+      const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
+      const bf = path.join(pf, 'Blender Foundation');
+      if (fs.existsSync(bf)) {
+        try {
+          for (const d of fs.readdirSync(bf, { withFileTypes: true })) {
+            if (d.isDirectory()) candidates.push(path.join(bf, d.name, 'blender.exe'));
+          }
+        } catch {
+          // Ignore probe errors
+        }
+      }
+    } else if (process.platform === 'darwin') {
+      candidates.push('/Applications/Blender.app/Contents/MacOS/Blender');
+    }
+    for (const bin of candidates) {
+      const res = probe(bin, ['--version']);
+      if (res.available) return res;
+    }
+    return { available: false, version: null };
+  };
+
   return {
     node: { required: true, ...probe(process.execPath, ['--version']) },
     git: { required: false, ...probe('git', ['--version']) },
-    blender: { required: false, ...probe('blender', ['--version']) },
+    blender: { required: false, ...probeBlender() },
+    ffmpeg: { required: false, ...probe('ffmpeg', ['-version']) },
   };
 }

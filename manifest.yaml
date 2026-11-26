@@ -1,12 +1,12 @@
 name: all-for-one
-displayName: "All-For-One V3 — AI Game & Software Engineering Framework"
-version: 3.0.0
+displayName: "All-For-One V3.1 — Single-AI-First Engineering & Creative Production Framework"
+version: 3.1.0
 license: Apache-2.0
 description: >-
-  Engine-aware multi-specialist AI engineering framework coordinating CRAZY
-  (Orchestrator), CRAZYMAKER (Implementation & Game Design), CRAZYDESIGNER
-  (Visual, Blender 3D & Asset Pipelines), CRAZYCODER (Engineering & Debugging),
-  and CRAZYQA (Independent QA & Security) across Claude, Antigravity, and ChatGPT/Codex.
+  Single-AI-first engineering and creative production framework coordinating
+  CRAZY (Orchestrator), CRAZYMAKER (Game Director), CRAZYDESIGNER (Visual,
+  Blender & Cinematic Production), CRAZYCODER (Engineering & Architecture), and
+  CRAZYQA (Independent QA & Security) across Claude, Antigravity, and ChatGPT/Codex.
 
 commands:
   - name: crazy

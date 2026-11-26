@@ -67,12 +67,55 @@ export interface RecurringProblemSummary {
   recommendation: string;
 }
 
+export interface KnownBugRecord {
+  id: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  summary: string;
+  status: 'OPEN' | 'RESOLVED';
+  detectedAt: string;
+  resolvedAt?: string;
+}
+
+export interface TaskProgressRecord {
+  taskId: string;
+  title: string;
+  status: 'PLANNED' | 'IN_PROGRESS' | 'IMPLEMENTED' | 'TESTED' | 'VERIFIED' | 'UNVERIFIED' | 'FAILED';
+  updatedAt: string;
+}
+
+export interface BuildInfoRecord {
+  stack: string;
+  command: string;
+  status: 'VERIFIED' | 'FAILED' | 'UNVERIFIED';
+  timestamp: string;
+  summary: string;
+}
+
+export interface AssetReferenceRecord {
+  key: string;
+  assetPath: string;
+  kind: string;
+  engine: string;
+  verified: boolean;
+}
+
 interface StructuredMemoryState {
-  version: '3.0.0';
+  version: '3.1.0';
+  projectSummary?: {
+    projectName: string;
+    engine: EngineId;
+    genre: GameGenre;
+    objective: string;
+  };
   fileChecksums: Record<string, string>;
+  lockedDecisionIds: string[];
   failedApproaches: Record<string, { count: number; reasons: string[] }>;
   successfulApproaches: Record<string, { specialist: string; evidence: string; recordedAt: string }>;
   knownGoodSnapshots: Record<string, KnownGoodSnapshot>;
+  knownBugs: Record<string, KnownBugRecord>;
+  taskProgress: Record<string, TaskProgressRecord>;
+  buildHistory: BuildInfoRecord[];
+  assetReferences: Record<string, AssetReferenceRecord>;
 }
 
 export class ProductionMemoryLedger {
@@ -94,17 +137,35 @@ export class ProductionMemoryLedger {
   private loadState(): StructuredMemoryState {
     if (fs.existsSync(this.statePath)) {
       try {
-        return JSON.parse(fs.readFileSync(this.statePath, 'utf8')) as StructuredMemoryState;
+        const raw = JSON.parse(fs.readFileSync(this.statePath, 'utf8')) as Partial<StructuredMemoryState>;
+        return {
+          version: '3.1.0',
+          projectSummary: raw.projectSummary,
+          fileChecksums: raw.fileChecksums ?? {},
+          lockedDecisionIds: raw.lockedDecisionIds ?? [],
+          failedApproaches: raw.failedApproaches ?? {},
+          successfulApproaches: raw.successfulApproaches ?? {},
+          knownGoodSnapshots: raw.knownGoodSnapshots ?? {},
+          knownBugs: raw.knownBugs ?? {},
+          taskProgress: raw.taskProgress ?? {},
+          buildHistory: raw.buildHistory ?? [],
+          assetReferences: raw.assetReferences ?? {},
+        };
       } catch {
-        // Recover cleanly from corrupt state JSON while flagging checksum mismatch
+        // Recover cleanly from corrupt state JSON while preserving checksum detection
       }
     }
     return {
-      version: '3.0.0',
+      version: '3.1.0',
       fileChecksums: {},
+      lockedDecisionIds: [],
       failedApproaches: {},
       successfulApproaches: {},
       knownGoodSnapshots: {},
+      knownBugs: {},
+      taskProgress: {},
+      buildHistory: [],
+      assetReferences: {},
     };
   }
 
@@ -153,11 +214,30 @@ export class ProductionMemoryLedger {
           this.writeLedgerFile(file, defaults[file]);
         }
       }
+
+      const state = this.loadState();
+      state.projectSummary = {
+        projectName: meta.projectName,
+        engine: meta.engine,
+        genre: meta.genre,
+        objective: redactSecrets(meta.objective),
+      };
+      this.saveState(state);
     });
   }
 
+  /**
+   * Appends a project decision; prevents silently overwriting an already-recorded decision ID.
+   */
   recordDecision(entry: DecisionEntry): void {
     withAdvisoryLock(this.lockPath, () => {
+      const state = this.loadState();
+      if (state.lockedDecisionIds.includes(entry.id)) {
+        throw new Error(
+          `Decision "${entry.id}" already exists. Create a new superseding decision ID instead of silently overwriting prior decisions.`,
+        );
+      }
+
       const block = [
         `## ${entry.id}: ${entry.title} (${entry.date})`,
         `- **Owner:** ${entry.owner}`,
@@ -171,9 +251,81 @@ export class ProductionMemoryLedger {
         .join('\n');
 
       this.appendLedgerFile('PROJECT_DECISIONS.md', block + '\n');
+      const nextState = this.loadState();
+      nextState.lockedDecisionIds.push(entry.id);
+      this.saveState(nextState);
       if (entry.failedApproachKey) {
         this.failedApproaches.add(entry.failedApproachKey);
       }
+    });
+  }
+
+  recordKnownBug(bug: Omit<KnownBugRecord, 'status' | 'detectedAt'>): KnownBugRecord {
+    return withAdvisoryLock(this.lockPath, () => {
+      const state = this.loadState();
+      const rec: KnownBugRecord = {
+        ...bug,
+        summary: redactSecrets(bug.summary),
+        status: 'OPEN',
+        detectedAt: new Date().toISOString(),
+      };
+      state.knownBugs[bug.id] = rec;
+      this.saveState(state);
+      return rec;
+    });
+  }
+
+  resolveKnownBug(bugId: string): KnownBugRecord {
+    return withAdvisoryLock(this.lockPath, () => {
+      const state = this.loadState();
+      const existing = state.knownBugs[bugId];
+      if (!existing) throw new Error(`Unknown bug "${bugId}".`);
+      existing.status = 'RESOLVED';
+      existing.resolvedAt = new Date().toISOString();
+      this.saveState(state);
+      return existing;
+    });
+  }
+
+  updateTaskProgress(
+    taskId: string,
+    title: string,
+    status: TaskProgressRecord['status'],
+  ): TaskProgressRecord {
+    return withAdvisoryLock(this.lockPath, () => {
+      const state = this.loadState();
+      const rec: TaskProgressRecord = {
+        taskId,
+        title: redactSecrets(title),
+        status,
+        updatedAt: new Date().toISOString(),
+      };
+      state.taskProgress[taskId] = rec;
+      this.saveState(state);
+      return rec;
+    });
+  }
+
+  recordBuildInfo(info: Omit<BuildInfoRecord, 'timestamp'>): BuildInfoRecord {
+    return withAdvisoryLock(this.lockPath, () => {
+      const state = this.loadState();
+      const rec: BuildInfoRecord = {
+        ...info,
+        summary: redactSecrets(info.summary),
+        timestamp: new Date().toISOString(),
+      };
+      state.buildHistory.push(rec);
+      if (state.buildHistory.length > 25) state.buildHistory.shift();
+      this.saveState(state);
+      return rec;
+    });
+  }
+
+  recordAssetReference(ref: AssetReferenceRecord): void {
+    withAdvisoryLock(this.lockPath, () => {
+      const state = this.loadState();
+      state.assetReferences[ref.key] = ref;
+      this.saveState(state);
     });
   }
 
@@ -282,6 +434,37 @@ export class ProductionMemoryLedger {
     withAdvisoryLock(this.lockPath, () => {
       this.writeLedgerFile('VERIFICATION_REPORT.md', markdown);
     });
+  }
+
+  /**
+   * Builds a compact, token-efficient context summary (< maxChars) for single-AI session
+   * continuity without re-reading the entire workspace.
+   */
+  buildCompactContextSummary(maxChars = 3600): string {
+    const state = this.loadState();
+    const openBugs = Object.values(state.knownBugs).filter((b) => b.status === 'OPEN');
+    const tasks = Object.values(state.taskProgress);
+    const verifiedTasks = tasks.filter((t) => t.status === 'VERIFIED').length;
+    const failedTasks = tasks.filter((t) => t.status === 'FAILED');
+    const lastBuild = state.buildHistory[state.buildHistory.length - 1];
+    const failedKeys = Object.keys(state.failedApproaches);
+    const assets = Object.values(state.assetReferences);
+
+    const lines: string[] = [
+      `# Compact Project Context`,
+      state.projectSummary
+        ? `- Project: ${state.projectSummary.projectName} (${state.projectSummary.engine} / ${state.projectSummary.genre}) — ${state.projectSummary.objective}`
+        : `- Ledger Dir: ${path.basename(this.ledgerDir)}`,
+      `- Locked Decisions: ${state.lockedDecisionIds.join(', ') || 'None'}`,
+      `- Tasks: ${verifiedTasks}/${tasks.length} VERIFIED${failedTasks.length > 0 ? ` | FAILED: ${failedTasks.map((t) => t.taskId).join(',')}` : ''}`,
+      `- Open Bugs: ${openBugs.length > 0 ? openBugs.map((b) => `[${b.severity}] ${b.id}: ${b.summary}`).join('; ') : 'None'}`,
+      lastBuild ? `- Latest Build: ${lastBuild.stack} -> ${lastBuild.status} (${lastBuild.summary})` : `- Latest Build: None recorded`,
+      `- Do-Not-Repeat Keys: ${failedKeys.join(', ') || 'None'}`,
+      `- Assets Tracked: ${assets.length} (${assets.filter((a) => a.verified).length} verified)`,
+    ];
+
+    const summary = lines.join('\n');
+    return summary.length <= maxChars ? summary : summary.slice(0, maxChars - 16) + '\n...[truncated]';
   }
 
   /** Verifies that ledger markdown files were not truncated or corrupted outside the ledger API. */
