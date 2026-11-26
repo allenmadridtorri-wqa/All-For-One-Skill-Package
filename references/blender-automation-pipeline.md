@@ -18,7 +18,7 @@ Reference guide for `/crazydesigner` and `/crazyqa` when driving Blender (`bpy`)
 - Apply hardware clamping (`detectHardwareProfile()`): cap render resolution (`<= 960px` on constrained hosts) and Cycles/EEVEE sample counts (`<= 32` on constrained hosts), enable Cycles denoising, and save `.blend` before rendering.
 
 ## 4. Visual Iteration Loop
-Execute **Create → Render → Inspect → Diagnose → Improve → Render Again** (`core/visual-iteration.ts`):
+Execute **Create → Render → Inspect → Diagnose → Improve → Render Again**:
 1. File existence alone never proves visual quality.
 2. Inspect rendered image validity, lighting contrast, silhouette, grounding, and material response.
-3. Preserve the highest-scoring verified render via `ProductionMemoryLedger.preserveKnownGoodOutput`.
+3. Back up and retain the highest-scoring verified render before overwriting outputs.

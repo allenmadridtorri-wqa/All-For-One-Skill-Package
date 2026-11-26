@@ -47,6 +47,8 @@ export interface UninstallOptions {
   homeDir?: string;
   dryRun?: boolean;
   force?: boolean;
+  requireApprovalForForce?: boolean;
+  destructiveApproval?: { approved: boolean; actor: string; reason: string };
 }
 
 export interface UninstallResult {
@@ -54,6 +56,8 @@ export interface UninstallResult {
   dryRun: boolean;
   removed: string[];
   skippedUserModified: string[];
+  backupRoot: string | null;
+  backedUpModified: string[];
   message: string;
 }
 
@@ -73,6 +77,12 @@ export interface ExternalToolsReport {
   ffmpeg: { required: boolean; available: boolean; version: string | null };
 }
 
+export function extractSkillReferencedPaths(markdown: string): string[];
+export function collectSkillSupportFiles(
+  resolvedSource: string,
+  skillMarkdown: string,
+): Array<{ rel: string; full: string }>;
+export function generateAntigravityWorkflow(cmd: string, skillMarkdown: string): string;
 export function assertSafeSubpath(baseDir: string, candidatePath: string): string;
 export function validateDestinationRoot(destRoot: string): string;
 export function safeInstall(options: InstallOptions): InstallResult;

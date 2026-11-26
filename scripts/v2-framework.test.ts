@@ -7,11 +7,6 @@ import { advanceFixedTimestep, createFixedTimestep } from '../assets/ecs/fixed-t
 import { ObjectPool } from '../assets/ecs/object-pool.ts';
 import { ResourceLifecycleTracker, runMicroBenchmark } from '../assets/ecs/resource-tracker.ts';
 import {
-  CollaborationCoordinator,
-  createStandardCrazyPipeline,
-  EXTENSION_HOOKS,
-} from '../core/collaboration.ts';
-import {
   detectEngineFromText,
   ENGINE_PROFILES,
   validateEngineCompatibility,
@@ -33,7 +28,6 @@ import {
   hashInputs,
   RenderSafetyManager,
 } from '../core/production-intelligence.ts';
-import { LEDGER_FILES, ProductionMemoryLedger } from '../core/production-memory.ts';
 import {
   aggregateOverallStatus,
   buildVerificationReport,
@@ -48,7 +42,7 @@ function makeTempDir(prefix: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// 1. Installer Safety (Section 11)
+// 1. Installer Safety & Force Uninstall Backup
 // ---------------------------------------------------------------------------
 
 test('installer blocks path traversal, null bytes, and root directory deletion', () => {
@@ -60,13 +54,11 @@ test('installer blocks path traversal, null bytes, and root directory deletion',
 test('installer dry-run makes zero filesystem mutations, preserves custom files, backs up, force-replaces, and uninstalls safely', () => {
   const tmpTarget = makeTempDir('afo-install-safety-');
   try {
-    // Pre-create an unrelated user custom skill file that must NEVER be deleted
     const customDir = path.join(tmpTarget, '.claude', 'skills', 'my-custom-skill');
     fs.mkdirSync(customDir, { recursive: true });
     const customFile = path.join(customDir, 'SKILL.md');
     fs.writeFileSync(customFile, '# My Custom User Skill\n');
 
-    // Dry-run must leave workspace untouched
     const dryRes = safeInstall({
       sourceRoot: ROOT_DIR,
       targetRoot: tmpTarget,
@@ -78,7 +70,6 @@ test('installer dry-run makes zero filesystem mutations, preserves custom files,
     assert.ok(dryRes.summary.created > 0);
     assert.equal(fs.existsSync(path.join(tmpTarget, 'oneskill.lock.json')), false);
 
-    // Real install
     const res1 = safeInstall({
       sourceRoot: ROOT_DIR,
       targetRoot: tmpTarget,
@@ -90,11 +81,9 @@ test('installer dry-run makes zero filesystem mutations, preserves custom files,
     assert.equal(fs.readFileSync(customFile, 'utf8'), '# My Custom User Skill\n');
     assert.equal(fs.existsSync(path.join(tmpTarget, '.claude/skills/crazyqa/SKILL.md')), true);
 
-    // Simulate user customizing an owned file
     const ownedSkill = path.join(tmpTarget, '.claude', 'skills', 'crazymaker', 'SKILL.md');
     fs.writeFileSync(ownedSkill, '# User Customized CrazyMaker\n');
 
-    // Non-destructive re-install must skip user-modified file
     const res2 = safeInstall({
       sourceRoot: ROOT_DIR,
       targetRoot: tmpTarget,
@@ -104,7 +93,6 @@ test('installer dry-run makes zero filesystem mutations, preserves custom files,
     assert.equal(res2.summary.skippedUserModified, 1);
     assert.equal(fs.readFileSync(ownedSkill, 'utf8'), '# User Customized CrazyMaker\n');
 
-    // Force install must create backup before overwriting
     const res3 = safeInstall({
       sourceRoot: ROOT_DIR,
       targetRoot: tmpTarget,
@@ -118,11 +106,41 @@ test('installer dry-run makes zero filesystem mutations, preserves custom files,
     assert.equal(fs.existsSync(backedUpCustom), true);
     assert.equal(fs.readFileSync(backedUpCustom, 'utf8'), '# User Customized CrazyMaker\n');
 
-    // Safe uninstall removes only package files and leaves user custom skill intact
-    const uninstallRes = safeUninstall({ targetRoot: tmpTarget, global: false });
-    assert.ok(uninstallRes.removed.length > 0);
+    // Modify again and test safeUninstall without force (preserves) vs with force + approval (backs up then removes)
+    fs.writeFileSync(ownedSkill, '# User Modified Before Uninstall\n');
+    const safeU = safeUninstall({ targetRoot: tmpTarget, global: false });
+    assert.ok(safeU.skippedUserModified.includes('.claude/skills/crazymaker/SKILL.md'));
+    assert.equal(fs.existsSync(ownedSkill), true);
+
+    assert.throws(
+      () =>
+        safeUninstall({
+          targetRoot: tmpTarget,
+          global: false,
+          force: true,
+          requireApprovalForForce: true,
+        }),
+      /requires explicit destructiveApproval/,
+    );
+
+    const forceU = safeUninstall({
+      targetRoot: tmpTarget,
+      global: false,
+      force: true,
+      requireApprovalForForce: true,
+      destructiveApproval: { approved: true, actor: 'test', reason: 'test force uninstall' },
+    });
+    assert.equal(fs.existsSync(ownedSkill), false);
+    assert.ok(forceU.backupRoot && fs.existsSync(forceU.backupRoot));
+    const backedUpUninstalled = path.join(
+      forceU.backupRoot,
+      '.claude',
+      'skills',
+      'crazymaker',
+      'SKILL.md',
+    );
+    assert.equal(fs.readFileSync(backedUpUninstalled, 'utf8'), '# User Modified Before Uninstall\n');
     assert.equal(fs.existsSync(customFile), true);
-    assert.equal(fs.existsSync(path.join(tmpTarget, '.claude/skills/crazy/SKILL.md')), false);
   } finally {
     fs.rmSync(tmpTarget, { recursive: true, force: true });
   }
@@ -131,7 +149,6 @@ test('installer dry-run makes zero filesystem mutations, preserves custom files,
 test('installer performs atomic rollback on mid-install failure', () => {
   const tmpTarget = makeTempDir('afo-rollback-');
   try {
-    // First install succeeds
     safeInstall({
       sourceRoot: ROOT_DIR,
       targetRoot: tmpTarget,
@@ -141,11 +158,9 @@ test('installer performs atomic rollback on mid-install failure', () => {
 
     const targetFile = path.join(tmpTarget, '.claude', 'skills', 'crazymaker', 'SKILL.md');
     const originalContent = fs.readFileSync(targetFile, 'utf8');
-    // Pre-modify an unrelated file to verify rollback doesn't touch it
     const userNote = path.join(tmpTarget, '.claude', 'skills', 'user-note.txt');
     fs.writeFileSync(userNote, 'keep-me');
 
-    // Simulate failure mid-install
     assert.throws(
       () =>
         safeInstall({
@@ -167,101 +182,7 @@ test('installer performs atomic rollback on mid-install failure', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Collaboration Architecture (Section 3 & 13)
-// ---------------------------------------------------------------------------
-
-test('CollaborationCoordinator enforces DAG, anti-fabrication, handoffs, retries, and extensions', () => {
-  const ctx = {
-    projectId: 'proj-1',
-    title: 'Neon Harbour',
-    engine: 'threejs' as const,
-    genre: 'open-world',
-    createdAt: new Date().toISOString(),
-    decisions: [],
-    artifacts: {},
-  };
-  const coord = createStandardCrazyPipeline(ctx);
-
-  // Extension hooks can be registered cleanly
-  coord.registerSpecialist(EXTENSION_HOOKS.audio_engineering);
-  assert.ok(coord.listSpecialists().some((s) => s.id === 'audio_engineering'));
-
-  // Only T1 is ready initially
-  assert.deepEqual(
-    coord.getReadyTasks().map((t) => t.id),
-    ['T1-GAME-DESIGN'],
-  );
-  assert.throws(() => coord.startTask('T2-VISUAL-AUDIO-SPEC'), /blocked/i);
-
-  coord.startTask('T1-GAME-DESIGN');
-  // Anti-fabrication guard rejects empty evidence
-  assert.throws(
-    () => coord.submitForReview('T1-GAME-DESIGN', { summary: '', timestamp: new Date().toISOString() }),
-    /Anti-fabrication/,
-  );
-
-  coord.submitForReview('T1-GAME-DESIGN', {
-    summary: 'Spec written with balancing formulas and 4 acceptance tests.',
-    artifacts: ['PROJECT_BRIEF.md'],
-    timestamp: new Date().toISOString(),
-  });
-  coord.reviewTask('T1-GAME-DESIGN', 'APPROVE', 'Design criteria complete.');
-  const handoff = coord.handoff('T1-GAME-DESIGN', 'T2-VISUAL-AUDIO-SPEC', 'Proceed with look-dev.');
-  assert.equal(handoff.toSpecialist, 'crazydesigner');
-
-  // T2 now unlocked
-  assert.deepEqual(
-    coord.getReadyTasks().map((t) => t.id),
-    ['T2-VISUAL-AUDIO-SPEC'],
-  );
-
-  // Test retry exhaustion on T2
-  coord.startTask('T2-VISUAL-AUDIO-SPEC');
-  coord.recordFailure('T2-VISUAL-AUDIO-SPEC', 'Attempt 1 missing lighting metrics');
-  coord.startTask('T2-VISUAL-AUDIO-SPEC');
-  coord.recordFailure('T2-VISUAL-AUDIO-SPEC', 'Attempt 2 missing audio spec');
-  coord.startTask('T2-VISUAL-AUDIO-SPEC');
-  const finalFail = coord.recordFailure('T2-VISUAL-AUDIO-SPEC', 'Attempt 3 exhausted');
-  assert.equal(finalFail.canRetry, false);
-  assert.equal(finalFail.task.status, 'FAILED');
-});
-
-test('CollaborationCoordinator detects dependency cycles', () => {
-  const coord = new CollaborationCoordinator({
-    projectId: 'p',
-    title: 'Cycle Test',
-    engine: 'unity',
-    genre: 'rpg',
-    createdAt: new Date().toISOString(),
-    decisions: [],
-    artifacts: {},
-  });
-  coord.addTask({
-    id: 'A',
-    assignedSpecialist: 'crazymaker',
-    objective: 'A',
-    requiredInputs: [],
-    expectedOutputs: [],
-    dependencies: ['B'],
-    acceptanceCriteria: ['x'],
-  });
-  assert.throws(
-    () =>
-      coord.addTask({
-        id: 'B',
-        assignedSpecialist: 'crazycoder',
-        objective: 'B',
-        requiredInputs: [],
-        expectedOutputs: [],
-        dependencies: ['A'],
-        acceptanceCriteria: ['y'],
-      }),
-    /cycle detected/i,
-  );
-});
-
-// ---------------------------------------------------------------------------
-// 3. Engine-Aware Profiles (Section 4)
+// 2. Engine-Aware Profiles
 // ---------------------------------------------------------------------------
 
 test('Engine profiles cover all 6 engines and enforce API isolation', () => {
@@ -285,7 +206,7 @@ test('Engine profiles cover all 6 engines and enforce API isolation', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. Production Intelligence, Quality Bars, Memory Ledger & Render Safety (Sec 17)
+// 3. Production Intelligence & Render Safety
 // ---------------------------------------------------------------------------
 
 test('ContinuousImprovementEngine enforces stop conditions and hardware limits', () => {
@@ -293,11 +214,16 @@ test('ContinuousImprovementEngine enforces stop conditions and hardware limits',
   assert.equal(constrained.tier, 'constrained');
   assert.equal(constrained.recommendedMaxParallelJobs, 1);
 
-  const loop = new ContinuousImprovementEngine(0.5, {
-    qualityThreshold: 0.85,
-    maxStaleStreak: 2,
-    minDelta: 0.05,
-  }, constrained, 1000);
+  const loop = new ContinuousImprovementEngine(
+    0.5,
+    {
+      qualityThreshold: 0.85,
+      maxStaleStreak: 2,
+      minDelta: 0.05,
+    },
+    constrained,
+    1000,
+  );
 
   const r1 = loop.recordIteration(
     {
@@ -312,7 +238,6 @@ test('ContinuousImprovementEngine enforces stop conditions and hardware limits',
   assert.equal(r1.record.accepted, true);
   assert.equal(r1.status, 'RUNNING');
 
-  // Stale iterations stop endless churn
   loop.recordIteration(
     {
       domain: 'shaders',
@@ -373,19 +298,29 @@ test('RenderSafetyManager tracks stale outputs, checkpoints, and backs up overwr
   try {
     const mgr = new RenderSafetyManager(tmpDir);
     const inputHash1 = hashInputs(['scene-v1']);
-    const first = mgr.commitOutputSafe(tmpDir, 'renders/shot01.png', Buffer.from('PNGDATA_V1'), inputHash1, 'preview-done');
+    const first = mgr.commitOutputSafe(
+      tmpDir,
+      'renders/shot01.png',
+      Buffer.from('PNGDATA_V1'),
+      inputHash1,
+      'preview-done',
+    );
     assert.equal(first.backedUpTo, null);
     assert.equal(mgr.isOutputStale('renders/shot01.png', inputHash1, tmpDir), false);
 
-    // Interrupted job detection
     const interrupted = mgr.detectInterruptedCheckpoints();
     assert.equal(interrupted.interrupted, true);
     assert.deepEqual(interrupted.completedCheckpoints, ['preview-done']);
 
-    // Input changed -> stale -> new commit backs up old file
     const inputHash2 = hashInputs(['scene-v2']);
     assert.equal(mgr.isOutputStale('renders/shot01.png', inputHash2, tmpDir), true);
-    const second = mgr.commitOutputSafe(tmpDir, 'renders/shot01.png', Buffer.from('PNGDATA_V2'), inputHash2, 'final-done');
+    const second = mgr.commitOutputSafe(
+      tmpDir,
+      'renders/shot01.png',
+      Buffer.from('PNGDATA_V2'),
+      inputHash2,
+      'final-done',
+    );
     assert.ok(second.backedUpTo && fs.existsSync(second.backedUpTo));
     assert.equal(fs.readFileSync(second.backedUpTo, 'utf8'), 'PNGDATA_V1');
 
@@ -396,30 +331,8 @@ test('RenderSafetyManager tracks stale outputs, checkpoints, and backs up overwr
   }
 });
 
-test('ProductionMemoryLedger initializes all 7 records and tracks failed approaches', () => {
-  const tmpDir = makeTempDir('afo-ledger-');
-  try {
-    const ledger = new ProductionMemoryLedger(tmpDir);
-    ledger.initLedger({
-      projectName: 'Skyline Courier',
-      engine: 'godot',
-      genre: 'open-world',
-      objective: 'Build rooftop traversal slice',
-      qualityStandards: ['60 FPS target'],
-      visualReferences: ['Dusk storm palette'],
-    });
-    assert.deepEqual(ledger.listLedgerFiles(), [...LEDGER_FILES]);
-
-    ledger.recordFailedApproach('naive-raycast-each-frame', 'Caused 4ms stall per 50 NPCs');
-    assert.equal(ledger.hasFailedApproach('naive-raycast-each-frame'), true);
-    assert.equal(ledger.hasFailedApproach('never-tried'), false);
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  }
-});
-
 // ---------------------------------------------------------------------------
-// 5. Task-Based Knowledge Retrieval (Section 17H)
+// 4. Task-Based Knowledge Retrieval
 // ---------------------------------------------------------------------------
 
 test('retrieveTaskKnowledge respects engine filtering and token budgets', () => {
@@ -433,7 +346,6 @@ test('retrieveTaskKnowledge respects engine filtering and token budgets', () => 
   assert.ok(ueLighting.selected.length >= 1);
   assert.ok(ueLighting.totalTokensLoaded <= 2500);
   assert.ok(ueLighting.tokenSavingsPercent >= 50);
-  // Must NOT load Three.js-only engine doc when targeting Unreal 5
   assert.equal(
     ueLighting.selected.some((d) => d.entry.id === 'engines/threejs'),
     false,
@@ -441,7 +353,7 @@ test('retrieveTaskKnowledge respects engine filtering and token budgets', () => 
 });
 
 // ---------------------------------------------------------------------------
-// 6. CRAZY QA Verification & 120-Case Eval Suite (Sections 8 & 9)
+// 5. CRAZY QA Verification & Keyword-Routing V2 Suite
 // ---------------------------------------------------------------------------
 
 test('CRAZY QA verifies screenshot existence and enforces strict status precedence', () => {
@@ -485,9 +397,12 @@ test('CRAZY QA verifies screenshot existence and enforces strict status preceden
   }
 });
 
-test('Evaluation V2 suite contains >= 100 cases and passes 100% deterministic policy checks', () => {
+test('Keyword-routing V2 suite contains >= 100 cases, carries explicit non-quality label, and matches 100%', () => {
   const evalReport = runEvaluationSuiteV2(ROOT_DIR);
   assert.ok(evalReport.totalCases >= 100, `Expected >= 100 cases, got ${evalReport.totalCases}`);
+  assert.equal(evalReport.evaluationMode, 'keyword-routing-and-policy-test');
+  assert.match(evalReport.evaluationLabel, /Keyword-Routing/);
+  assert.match(evalReport.evaluationLabel, /NOT a live AI skill quality score/);
   assert.equal(evalReport.liveModelEvaluationStatus, 'UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER');
   const failed = evalReport.results.filter((r) => !r.passed);
   assert.equal(
@@ -495,10 +410,11 @@ test('Evaluation V2 suite contains >= 100 cases and passes 100% deterministic po
     evalReport.totalCases,
     `Failed eval cases: ${JSON.stringify(failed.slice(0, 5), null, 2)}`,
   );
+  assert.equal(evalReport.routingMatchPercent, 100);
 });
 
 // ---------------------------------------------------------------------------
-// 7. Reusable Engineering Library (Section 10)
+// 6. Reusable Engineering Library
 // ---------------------------------------------------------------------------
 
 test('ResourceLifecycleTracker detects leaks and micro-benchmark measures ops/sec', () => {

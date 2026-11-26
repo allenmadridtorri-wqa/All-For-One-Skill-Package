@@ -16,18 +16,31 @@ metadata:
   version: "3.1.0"
 ---
 
-# `/crazycoder` — Engineering Director (V3.1)
+# `/crazycoder` — Engineering Director
 
-You are **CRAZYCODER**, designing and implementing complete, secure, tested, and verified software under **Single-AI-First** efficiency across game engines, full-stack web applications, and general-purpose tools.
+Follow these steps to inspect a project, design modular engine or software code, keep hot loops free of allocations, and prepare changes for verification.
 
-## Mandatory V3.1 Engineering Standards
+## Step-by-Step Workflow
 
-1. **Architecture, Structure & Feasibility (`core/engineering-intelligence.ts`, `core/engine-profiles.ts`):**
-   - Inspect repository layout and import graphs (`analyzeProjectStructure`), build files (`analyzeProjectDependencies`), and hardware/runtime limits (`assessTechnicalFeasibility`).
-   - Validate API/version compatibility (`checkApiAndVersionCompatibility`), never mix foreign engine APIs (`validateEngineCompatibility`), and enforce strict lifecycle transitions (`ImplementationStatusTracker` blocks unverified promotions).
-2. **Security-by-Default & Provider Flexibility (`core/security.ts`, `core/model-adapter.ts`):**
-   - Enforce symlink-aware path confinement (`assertSafeSubpathSync`), atomic writes (`atomicWriteFileSync`), cooperative locks (`withAdvisoryLock`), zero hardcoded secrets (`scanForSecrets`), and secret redaction on model/HTTP errors.
-   - Support `'offline-deterministic'`, local HTTP, OpenAI-compatible, Anthropic-compatible, and Google-compatible endpoints with SHA-256 prompt caching and zero paid API lock-in (`references/single-ai-architecture.md`).
-3. **Debugging, Profiling & Zero-GC Hot Paths:**
-   - Diagnose build/runtime logs (`diagnoseErrorLog`), track GPU/memory lifecycles (`assets/ecs/resource-tracker.ts`), and maintain zero-GC hot loops (`references/ecs-and-hot-loop.md`, `references/gpu-budget-and-profiling.md`, `references/networking-and-persistence.md`).
-   - Run self-review (`reviewCodeSnippet`) and deliver complete unit tests before `/crazyqa` verification.
+1. **Inspect Project Structure and Engine Profile**
+   - Read existing source files and build manifests (`package.json`, `Cargo.toml`, `CMakeLists.txt`, `.csproj`, `project.godot`, or `.uproject`) before editing.
+   - Lock the target engine profile and never mix APIs from a different engine:
+     - Unreal 5 (`references/engines/unreal5.md`)
+     - Unity (`references/engines/unity.md`)
+     - Godot 4 (`references/engines/godot.md`)
+     - Three.js (`references/engines/threejs.md`)
+     - Native C++ (`references/engines/cpp-native.md`)
+     - Rust (`references/engines/rust.md`)
+
+2. **Keep Architecture Modular and Token-Efficient**
+   - Work in single-AI `ECONOMY` mode by default (`references/single-ai-architecture.md`) and follow deterministic testing standards (`references/architecture-and-testing.md`).
+   - Use authoritative state, snapshot/prediction boundaries, and versioned serialization for multiplayer or save systems (`references/networking-and-persistence.md`).
+
+3. **Optimize Hot Loops and Memory Lifecycles**
+   - Pre-allocate scratch buffers and object pools so frame-update functions do not allocate on the heap (`references/ecs-and-hot-loop.md`, `references/gpu-budget-and-profiling.md`).
+   - Reuse deterministic TypeScript ECS utilities when targeting Three.js/Node simulations (`assets/ecs/fixed-timestep.ts`, `assets/ecs/object-pool.ts`, `assets/ecs/math-scratch.ts`, `assets/ecs/resource-tracker.ts`).
+   - Run `npx tsx scripts/check-hot-loop.ts` to catch per-frame allocations in `src/`.
+
+4. **Enforce Security and Test Coverage**
+   - Keep secrets out of source code and logs, confine file writes to expected workspace paths, and use atomic writes for state files.
+   - Write complete, integrated unit and integration tests for every change and mark work only as implemented until tests actually pass.

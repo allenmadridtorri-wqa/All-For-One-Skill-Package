@@ -20,11 +20,11 @@ All-For-One V3.1 is engineered to work at full depth using **one AI model** so d
 
 | Command | Specialist Role | Core V3.1 Responsibilities |
 | :--- | :--- | :--- |
-| **`/crazy`** | **Single-AI-First Master Orchestrator** | Coordinates work in `ECONOMY` mode by default, routes specialist lenses, assesses project structure/hardware feasibility, persists compact `.afo-memory/`, and enforces separate QA truth gating. |
-| **`/crazymaker`** | **Game Director & Technical Producer** | Authors gameplay specifications, genre profiles, economies, NPC AI, balancing rules, screenplay beats, and pre-code acceptance criteria; locks immutable decisions in `PROJECT_DECISIONS.md`. |
-| **`/crazydesigner`** | **Visual, Blender, Cinematic & Cloud GPU Director** | Directs art direction, hardened headless Blender `bpy` automation (procedural environments/vehicles/architecture, `Smart UV`, `LOD1/LOD2`, `IK/FK` + facial rigs, cloth/hair, tracked camera rigs, volumetrics, compositor glare), Toggle Studio parameterized choreography, long-form shot chunking, Google Colab GPU packaging, FBX/GLB validation, spatial audio, and visual iteration. |
-| **`/crazycoder`** | **Engineering Director** | Implements clean, modular code across 6 game engines (`unreal5`, `unity`, `godot`, `threejs`, `cpp-native`, `rust`) plus `web-fullstack` and `general-software`, performs incremental structure & dependency analysis, checks API/version deprecations, enforces `ImplementationStatusTracker`, and configures cached model adapters (`core/model-adapter.ts`). |
-| **`/crazyqa`** | **Independent QA & Security Director** | Runs independent static checks, unit/integration tests, GLB/FBX audits, PNG magic-byte verification, FFmpeg availability checks, and secret scanning (`scanForSecrets`) under strict anti-fabrication statuses (`VERIFIED`, `PARTIALLY_VERIFIED`, `UNVERIFIED`, `FAILED`). |
+| **`/crazy`** | **Single-AI-First Master Orchestrator** | Coordinates work in `ECONOMY` mode by default, routes specialist lenses, checks optional host tools, retrieves budgeted references, and enforces separate QA truth gating. |
+| **`/crazymaker`** | **Game Director & Technical Producer** | Authors gameplay specifications, genre profiles, economies, NPC AI, balancing rules, screenplay beats, and pre-code acceptance criteria. |
+| **`/crazydesigner`** | **Visual, Blender, Cinematic & Cloud GPU Director** | Directs art direction, hardened headless Blender `bpy` automation (procedural environments/vehicles/architecture, `Smart UV`, `LOD1/LOD2`, `IK/FK` + facial rigs, cloth/hair, tracked camera rigs, volumetrics, compositor glare), parameterized choreography, long-form shot chunking, Google Colab GPU packaging, engine export specs, spatial audio, and visual iteration. |
+| **`/crazycoder`** | **Engineering Director** | Implements clean, modular code across 6 game engines (`unreal5`, `unity`, `godot`, `threejs`, `cpp-native`, `rust`) plus `web-fullstack` and `general-software`, maintains zero-GC hot loops, enforces security path/secret checks, and adds unit tests. |
+| **`/crazyqa`** | **Independent QA & Security Director** | Runs independent static checks, unit/integration tests, PNG magic-byte verification, FFmpeg availability checks, and secret scanning (`scanForSecrets`) under strict anti-fabrication statuses (`VERIFIED`, `PARTIALLY_VERIFIED`, `UNVERIFIED`, `FAILED`). |
 
 ---
 
@@ -39,6 +39,7 @@ All-For-One V3.1 is engineered to work at full depth using **one AI model** so d
 .\install.ps1 -Workspace -Force -Yes  # Backup modified files to .afo-backups/ and overwrite
 .\install.ps1 -Verify -Workspace      # Verify SHA-256 integrity of installed files
 .\install.ps1 -Uninstall              # Safe uninstall preserving user-modified files
+.\install.ps1 -Uninstall -Force -Yes  # Back up modified files to .afo-backups/ and remove owned files
 ```
 
 ### macOS / Linux
@@ -61,9 +62,9 @@ Requires **Node.js >= 18** (`blender` and `ffmpeg` are optional external binarie
 ```bash
 npm run lint                  # TypeScript typecheck (tsc --noEmit)
 npm run afo:validate          # Validate 5 skills, frontmatter, links, and 28-doc knowledge index
-npm run afo:test              # Run all V1+V2+V3+V3.1 tests (afo, v2-framework, v3-framework, v3_1-framework)
-npm run afo:eval              # Run 159-case deterministic evaluation across 13 domains
-npm run afo:eval:legacy       # Run 8-case backward-compatible trigger check
+npm run afo:test              # Run all unit & integration tests (afo, v2, v3, v3_1)
+npm run afo:eval              # Run 159-case keyword-routing & static policy test (not a live quality score)
+npm run afo:eval:legacy       # Run 8-case legacy keyword-routing trigger check (not a live quality score)
 npm run afo:check-tools       # Detect Node.js, Git, optional Blender (incl. Windows paths), and FFmpeg
 npm run afo:verify-install    # Verify SHA-256 install integrity in workspace
 npm run afo:retrieve -- --query="colab gpu render" --budget=3500
@@ -71,7 +72,6 @@ npx tsx scripts/afo.ts single-ai-check --mode=ECONOMY
 npx tsx scripts/afo.ts colab-check --frames=2160 --engine=CYCLES
 npx tsx scripts/afo.ts cinematic-plan --duration=90 --fps=24
 npm run afo:build             # Build Claude ZIPs, Antigravity bundle, and ChatGPT Custom GPT bundle
-npm run afo:package-zip       # Create clean release/All-For-One-Skill-Package-V3.1.zip
 npm run afo:qa                # Generate VERIFICATION_REPORT.md
 ```
 
@@ -96,4 +96,4 @@ npm run afo:qa                # Generate VERIFICATION_REPORT.md
 - **Optional External Binaries:** `blender`, `ffmpeg`, Unreal (`UnrealBuildTool`), Unity CLI, Godot CLI, CMake/C++, and Rust/Cargo are external toolchains. Whenever a binary is absent in the execution environment, checks relying on it strictly report **`UNVERIFIED`** rather than fabricating pass results.
 - **Google Colab GPU Sessions:** Colab runtimes are ephemeral and require interactive Google Drive authentication. Remote renders remain **`UNVERIFIED_PREPARED_FOR_COLAB`** until downloaded PNG frames pass magic-byte verification locally (`reconcileRemoteRenderOutputs`).
 - **Windows Execution Environment:** Windows PowerShell scripts and path probing were verified on Linux via unit tests and static checks; actual Windows OS execution remains **`UNVERIFIED`** until run on Windows.
-- **Offline Evaluation Scope:** `npm run afo:eval` verifies deterministic routing, policy enforcement, security checks, and retrieval offline (`liveModelEvaluationStatus: UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER`).
+- **Keyword-Routing Test Scope:** `npm run afo:eval` and `npm run afo:eval:legacy` verify offline keyword/regex routing, conflict rules, and reference retrieval (`liveModelEvaluationStatus: UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER`); they do **not** measure live LLM output or skill quality.

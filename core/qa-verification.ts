@@ -1,8 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { validateExportedAsset, type AssetValidationReport } from './asset-pipeline.ts';
 import { detectBlenderInstallation, type BlenderExecutionResult } from './blender-bridge.ts';
-import type { EngineId } from './engine-profiles.ts';
 import { scanForSecrets, type SecretFinding } from './security.ts';
 
 export type VerificationStatus = 'VERIFIED' | 'PARTIALLY_VERIFIED' | 'UNVERIFIED' | 'FAILED';
@@ -173,32 +171,6 @@ export function evaluateBlenderQaCheck(
     exitCode: blenderExec.exitCode,
     logsExcerpt: (blenderExec.stderr || blenderExec.stdout).slice(0, 300),
     evidence: blenderExec.reason,
-  };
-}
-
-/**
- * Converts exported 3D asset validation into an independent QA VerificationCheckRecord.
- */
-export function evaluateExportedAssetQaCheck(
-  workspaceDir: string,
-  assetRelPath: string,
-  targetEngine: EngineId,
-): { check: VerificationCheckRecord; report: AssetValidationReport } {
-  const report = validateExportedAsset(workspaceDir, assetRelPath, targetEngine);
-  return {
-    report,
-    check: {
-      id: `QA-ASSET-${targetEngine.toUpperCase()}`,
-      category: 'asset-pipeline',
-      description: `Validate exported ${report.format.toUpperCase()} asset for ${targetEngine}`,
-      status: report.status,
-      commandOrSource: `validateExportedAsset("${assetRelPath}", "${targetEngine}")`,
-      exitCode: report.status === 'FAILED' ? 1 : 0,
-      evidence:
-        report.status === 'FAILED'
-          ? `Issues: ${report.issues.join('; ')}`
-          : `Meshes=${report.meshCount}, Materials=${report.materialCount}, UVs=${report.hasUvs}, Normals=${report.hasNormals}. ${report.warnings.join('; ')}`.trim(),
-    },
   };
 }
 

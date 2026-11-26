@@ -77,12 +77,14 @@ export interface EvalCaseResult {
 export interface EvaluationReportV2 {
   version: '2.0.0';
   generatedAt: string;
-  evaluationMode: 'deterministic-static-and-policy';
+  evaluationMode: 'keyword-routing-and-policy-test';
+  evaluationLabel: 'Keyword-Routing & Static Policy Test (NOT a live AI skill quality score)';
+  scoreMeaning: string;
   liveModelEvaluationStatus: 'UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER';
   totalCases: number;
   passedCases: number;
-  accuracyPercent: number;
-  byCategory: Record<string, { total: number; passed: number; accuracyPercent: number }>;
+  routingMatchPercent: number;
+  byCategory: Record<string, { total: number; passed: number; routingMatchPercent: number }>;
   results: EvalCaseResult[];
 }
 
@@ -308,7 +310,7 @@ export function evaluateDeterministicCase(rootDir: string, c: EvalCaseV2): EvalC
     conflictDetected,
     knowledgeDocsRetrieved: retrieval.selected.length,
     notes: passed
-      ? 'Deterministic policy & routing matched.'
+      ? 'Keyword-routing regex and static policy rules matched.'
       : `Mismatch: spec(${predictedSpecialist}!=${c.expectedSpecialist}) action(${predictedAction}!=${c.expectedAction}) conflict(${conflictDetected})`,
   };
 }
@@ -323,24 +325,27 @@ export function runEvaluationSuiteV2(
   const byCategory: EvaluationReportV2['byCategory'] = {};
   for (const r of results) {
     if (!byCategory[r.category]) {
-      byCategory[r.category] = { total: 0, passed: 0, accuracyPercent: 0 };
+      byCategory[r.category] = { total: 0, passed: 0, routingMatchPercent: 0 };
     }
     byCategory[r.category].total += 1;
     if (r.passed) byCategory[r.category].passed += 1;
   }
   for (const cat of Object.values(byCategory)) {
-    cat.accuracyPercent = Math.round((cat.passed / cat.total) * 10000) / 100;
+    cat.routingMatchPercent = Math.round((cat.passed / cat.total) * 10000) / 100;
   }
 
   const passedCases = results.filter((r) => r.passed).length;
   return {
     version: '2.0.0',
     generatedAt: new Date().toISOString(),
-    evaluationMode: 'deterministic-static-and-policy',
+    evaluationMode: 'keyword-routing-and-policy-test',
+    evaluationLabel: 'Keyword-Routing & Static Policy Test (NOT a live AI skill quality score)',
+    scoreMeaning:
+      'Measures deterministic regex/keyword routing and static conflict/ambiguity checks; does NOT score live AI output or skill quality.',
     liveModelEvaluationStatus: 'UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER',
     totalCases: results.length,
     passedCases,
-    accuracyPercent: Math.round((passedCases / results.length) * 10000) / 100,
+    routingMatchPercent: Math.round((passedCases / results.length) * 10000) / 100,
     byCategory,
     results,
   };
@@ -349,11 +354,13 @@ export function runEvaluationSuiteV2(
 export interface EvaluationReportV3 {
   version: '3.0.0';
   generatedAt: string;
-  evaluationMode: 'deterministic-static-and-policy';
+  evaluationMode: 'keyword-routing-and-policy-test';
+  evaluationLabel: 'Keyword-Routing & Static Policy Test (NOT a live AI skill quality score)';
+  scoreMeaning: string;
   liveModelEvaluationStatus: 'UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER';
   model: string;
   configuration: {
-    adapterKind: 'offline-deterministic';
+    adapterKind: 'keyword-routing-regex-matcher';
     retrievalMaxTokens: number;
     hardwareTier: string;
   };
@@ -367,8 +374,8 @@ export interface EvaluationReportV3 {
   };
   totalCases: number;
   passedCases: number;
-  accuracyPercent: number;
-  byCategory: Record<string, { total: number; passed: number; accuracyPercent: number }>;
+  routingMatchPercent: number;
+  byCategory: Record<string, { total: number; passed: number; routingMatchPercent: number }>;
   results: EvalCaseResult[];
 }
 
@@ -392,13 +399,13 @@ export function runEvaluationSuiteV3(
   const byCategory: EvaluationReportV3['byCategory'] = {};
   for (const r of results) {
     if (!byCategory[r.category]) {
-      byCategory[r.category] = { total: 0, passed: 0, accuracyPercent: 0 };
+      byCategory[r.category] = { total: 0, passed: 0, routingMatchPercent: 0 };
     }
     byCategory[r.category].total += 1;
     if (r.passed) byCategory[r.category].passed += 1;
   }
   for (const cat of Object.values(byCategory)) {
-    cat.accuracyPercent = Math.round((cat.passed / cat.total) * 10000) / 100;
+    cat.routingMatchPercent = Math.round((cat.passed / cat.total) * 10000) / 100;
   }
 
   const hw = detectHardwareProfile();
@@ -408,11 +415,14 @@ export function runEvaluationSuiteV3(
   return {
     version: '3.0.0',
     generatedAt: new Date().toISOString(),
-    evaluationMode: 'deterministic-static-and-policy',
+    evaluationMode: 'keyword-routing-and-policy-test',
+    evaluationLabel: 'Keyword-Routing & Static Policy Test (NOT a live AI skill quality score)',
+    scoreMeaning:
+      'Measures deterministic regex/keyword routing and static conflict/ambiguity checks; does NOT score live AI output or skill quality.',
     liveModelEvaluationStatus: 'UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER',
-    model: 'afo-deterministic-v3 (no live LLM API invoked)',
+    model: 'keyword-routing-regex-matcher (no live LLM invoked)',
     configuration: {
-      adapterKind: 'offline-deterministic',
+      adapterKind: 'keyword-routing-regex-matcher',
       retrievalMaxTokens: 6000,
       hardwareTier: hw.tier,
     },
@@ -426,7 +436,7 @@ export function runEvaluationSuiteV3(
     },
     totalCases: results.length,
     passedCases,
-    accuracyPercent: Math.round((passedCases / results.length) * 10000) / 100,
+    routingMatchPercent: Math.round((passedCases / results.length) * 10000) / 100,
     byCategory,
     results,
   };

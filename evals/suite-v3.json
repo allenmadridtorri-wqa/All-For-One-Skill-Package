@@ -1,6 +1,7 @@
 {
   "version": "3.0.0",
-  "description": "All-For-One V3 extended benchmark suite across all 13 evaluation domains (coding accuracy, architecture, debugging, technical research, game development, Blender automation, 3D production, asset pipelines, QA accuracy, task coordination, security, failure recovery, and resource efficiency).",
+  "testType": "keyword-routing-and-policy-test (NOT a live AI skill quality score)",
+  "description": "All-For-One V3 extended 13-domain keyword-routing and static policy test (routing across coding, architecture, debugging, technical research, game development, Blender automation, 3D production, asset pipelines, QA, task coordination, security, failure recovery, and resource efficiency). Does NOT score live LLM output or skill quality.",
   "cases": [
     { "id": "V3-CODE-01", "category": "coding-accuracy", "prompt": "/crazycoder implement an Express REST endpoint with validated TypeScript DTO schemas", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist" },
     { "id": "V3-CODE-02", "category": "coding-accuracy", "prompt": "Refactor fixed-timestep accumulator and object pool serialization in Rust", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist", "targetEngine": "rust" },

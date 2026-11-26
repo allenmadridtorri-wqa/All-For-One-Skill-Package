@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { CoreSpecialistId } from './collaboration.ts';
 import type { EngineId } from './engine-profiles.ts';
+
+export type CoreSpecialistId = 'crazymaker' | 'crazydesigner' | 'crazycoder' | 'crazyqa';
 
 export type KnowledgeSourceType =
   | 'official-spec'

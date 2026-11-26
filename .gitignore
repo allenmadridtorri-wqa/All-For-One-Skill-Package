@@ -2,8 +2,15 @@ node_modules/
 build/
 dist/
 coverage/
+release/
+.claude/
+.agent/
+.agents/
+oneskill.lock.json
+evals/report.json
 .DS_Store
 *.log
 .env*
 !.env.example
 .afo-backups/
+

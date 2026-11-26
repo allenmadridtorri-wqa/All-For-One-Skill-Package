@@ -5,7 +5,7 @@ Reference manual for `/crazyqa` — strict evidence-based verification across co
 ## 1. The 12-Point QA Verification Matrix
 
 1. **Static Analysis:** TypeScript `tsc --noEmit`, ESLint / `cargo clippy` / compiler `-Wall -Wextra`, hot-loop allocation check (`scripts/check-hot-loop.ts`), cross-engine API isolation (`core/engine-profiles.ts`).
-2. **Dependency Validation:** Lockfile integrity, zero broken relative paths (`scripts/validate-skill-package.ts`), zero circular task dependencies (`CollaborationCoordinator.assertAcyclicGraph()`).
+2. **Dependency Validation:** Lockfile integrity, zero broken relative paths (`scripts/validate-skill-package.ts`), acyclic task dependency ordering.
 3. **Unit Testing:** Pure simulation, physics, math, economy, and state-machine tests (`node:test`, Catch2, `cargo test`, Unity EditMode, GUT).
 4. **Integration Testing:** Cross-module handoffs (e.g., installer backup/rollback, ledger updates, multi-system gameplay flows).
 5. **End-to-End Testing:** Full user flows (`Start -> Gameplay -> Restart -> Save/Load`).

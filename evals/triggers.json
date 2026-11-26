@@ -1,5 +1,6 @@
 {
   "version": "1.0.0",
+  "testType": "keyword-routing-test (NOT a live AI skill quality score)",
   "cases": [
     {
       "id": "designer-explicit",

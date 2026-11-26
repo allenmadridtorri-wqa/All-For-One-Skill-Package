@@ -179,15 +179,18 @@ export function validateSkillPackage(rootDir: string): ValidationReport {
     }
 
     // Verify all referenced paths under references/, scripts/, assets/, skills/ exist
-    const pathMatches = body.matchAll(/`((?:references|scripts|assets|skills)\/[a-zA-Z0-9._/-]+)`/g);
+    const pathMatches = body.matchAll(
+      /(?:^|[\s(`"'[])((?:references|scripts|assets|skills)\/[a-zA-Z0-9._/-]+)/gm,
+    );
     for (const match of pathMatches) {
-      const refRel = match[1].replace(/\/$/, '');
+      const refRel = match[1].replace(/[.,;:!?)'"`]+$/, '').replace(/\/+$/, '');
+      if (!refRel) continue;
       const refAbs = path.join(rootDir, refRel);
       if (!fs.existsSync(refAbs)) {
         issues.push({
           severity: 'error',
           file: relSkillPath,
-          message: `Broken reference path: \`${match[1]}\` does not exist.`,
+          message: `Broken reference path: \`${refRel}\` does not exist.`,
         });
       }
     }

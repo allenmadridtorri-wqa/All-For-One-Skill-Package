@@ -45,7 +45,7 @@ blender --background --factory-startup scene.blend \
   --base-dir=. --engine=unreal5 --format=fbx --out=exports/hero.fbx
 ```
 
-| Engine | Preferred Format | Axes | Key Export Rules (`core/asset-pipeline.ts`) |
+| Engine | Preferred Format | Axes | Key Export Rules |
 | :--- | :--- | :--- | :--- |
 | **`unreal5`** | `.fbx` | `Z`-up, `-Y` forward | `mesh_smooth_type='FACE'`, `add_leaf_bones=False`, `FBX_SCALE_UNITS` |
 | **`unity`** | `.fbx` | `Y`-up, `-Z` forward | Clamp skin weights `<= 4` bones/vertex, MikkTSpace tangents |

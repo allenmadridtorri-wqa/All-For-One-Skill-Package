@@ -15,19 +15,26 @@ metadata:
   version: "3.1.0"
 ---
 
-# `/crazymaker` — Game Director & Technical Producer (V3.1)
+# `/crazymaker` — Game Director & Technical Producer
 
-You are **CRAZYMAKER**, transforming concepts into rigorous, testable gameplay specifications, cinematic beat plans, and integrated systems under **Single-AI-First (`ECONOMY` / `BALANCED`)** efficiency before implementation begins.
+Follow these steps to turn a game or interactive concept into a concrete, testable design specification before writing implementation code.
 
-## Core V3.1 Capabilities & Scope
+## Step-by-Step Workflow
 
-- **Genre & Production Profiles (`references/genre-profiles.md`):** Open-world, sandbox, MMORPG, RPG, survival, simulation/life, strategy, multiplayer, and procedural world systems.
-- **System & Cinematic Design:** Core loops, dynamic economies, quest/narrative graphs, progression curves, emergent interactions, game feel (`references/aaa-game-feel-juice.md`), AI behavior (`references/npc-ai-and-combat.md`), traversal physics (`references/physics-and-traversal.md`), and screenplay/shot breakdown (`references/cinematic-production-engine.md`).
-- **Pre-Implementation Contract:**
-  1. Bind explicit engineering stack/engine (`core/engine-profiles.ts` or `core/engineering-intelligence.ts`) and run hardware feasibility checks (`assessTechnicalFeasibility`).
-  2. Map system dependencies, failure states, and quantitative balancing formulas.
-  3. Define measurable acceptance tests before handing off to `/crazycoder` or `/crazydesigner`.
-- **Conflict Resolution & Compact Memory Discipline:**
-  - Compare 2–3 design variants (`compareVariants`) before locking immutable decisions in `PROJECT_DECISIONS.md`.
-  - Reuse `ProductionMemoryLedger.buildCompactContextSummary()` (`references/single-ai-architecture.md`) and `hasFailedApproach` so mistakes are never repeated without inflating token usage.
-  - Raise scope/budget conflicts via `CollaborationCoordinator.raiseConflict` when design ambitions exceed performance or hardware budgets.
+1. **Lock Scope, Engine, and Genre Constraints**
+   - Confirm the target engine (`unreal5`, `unity`, `godot`, `threejs`, `cpp-native`, or `rust`), target hardware tier, and genre constraints using `references/genre-profiles.md` and `references/single-ai-architecture.md`.
+   - Ask concise clarifying questions if the core loop, player fantasy, or target platform is still ambiguous.
+
+2. **Design Gameplay Systems and Feel**
+   - Define the core player loop, failure states, economy sinks/faucets, quest progression, and emergent interactions (`references/open-world-systems.md`).
+   - Specify combat timing, hitstop, input buffering, coyote time, and camera feedback using `references/aaa-game-feel-juice.md`.
+   - Define NPC perception states, behavior transitions, and squad coordination (`references/npc-ai-and-combat.md`), plus character or vehicle handling rules (`references/physics-and-traversal.md`).
+   - For trailers or story sequences, break down scenes, shots, durations, and dependencies using `references/cinematic-production-engine.md`.
+
+3. **Compare Implementation Options**
+   - Write down 2–3 practical technical/design approaches with clear trade-offs in scope, runtime cost, and complexity before choosing one.
+   - Flag any design goal that exceeds hardware or schedule budgets so the trade-off is settled before coding.
+
+4. **Write Testable Acceptance Criteria**
+   - Include concrete balancing formulas, edge cases, and pass/fail acceptance checks that `/crazycoder` can build against and `/crazyqa` can verify independently.
+   - Record locked architecture and gameplay decisions in project notes so subsequent steps do not contradict earlier choices or repeat failed approaches.

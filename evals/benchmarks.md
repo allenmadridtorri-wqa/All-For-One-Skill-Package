@@ -1,6 +1,8 @@
-# All For One — Cross-Frontier AAA Benchmark Suite
+# All For One — Cross-Frontier Manual Benchmark Prompts
 
-Use these three flagship prompts to verify behavioral parity across **Claude**, **Google Antigravity**, and **ChatGPT / Codex**.
+Use these five flagship prompts to test real-world live model output quality across **Claude**, **Google Antigravity**, and **ChatGPT / Codex**.
+
+> **Note:** Automated `npm run afo:eval` and `npm run afo:eval:legacy` are **keyword-routing and static policy tests** (checking regex/keyword matching and conflict/ambiguity rules offline), **NOT** live AI skill quality scores.
 
 ---
 

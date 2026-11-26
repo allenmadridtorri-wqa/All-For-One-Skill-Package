@@ -1,6 +1,6 @@
 # Game Engine Asset Pipelines (Blender -> Unreal, Unity, Godot, Three.js)
 
-Reference guide for exporting, validating, and verifying 3D assets (`core/asset-pipeline.ts`).
+Reference guide for exporting, checking, and verifying 3D assets across engines.
 
 ## 1. Engine Export Matrix
 
@@ -11,7 +11,7 @@ Reference guide for exporting, validating, and verifying 3D assets (`core/asset-
 | **Godot 4** | `.glb` (glTF 2.0 binary) | `+Y` Up / `-Z` Forward | `1 unit = 1m`, applied transforms | Packed `metallicRoughness` textures, verified animation track names |
 | **Three.js / Web** | `.glb` (glTF 2.0 binary) | `+Y` Up / `-Z` Forward | `1 unit = 1m`, applied transforms | Power-of-two textures (`<= 2048px`), minimal material slots, KTX2/Draco optional |
 
-## 2. Mandatory Pre-Export & Post-Export Checks (`validateExportedAsset`)
+## 2. Mandatory Pre-Export & Post-Export Checks
 - **Scale & Orientation:** Apply all object transforms (`bpy.ops.object.transform_apply(scale=True)`); flag non-unit `[1,1,1]` node scales.
 - **Mesh & UVs:** Verify `POSITION`, `NORMAL`, and `TEXCOORD_0` attributes exist on every mesh primitive (unless unlit/non-textured procedural shader explicitly waives UVs).
 - **Materials & Textures:** Verify PBR `pbrMetallicRoughness` bindings and resolve texture paths cleanly without absolute local machine drive paths.

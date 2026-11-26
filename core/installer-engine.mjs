@@ -171,19 +171,75 @@ function parseSkillMarkdown(markdown) {
   };
 }
 
-function generateAntigravityWorkflow(cmd, skillMarkdown) {
+export function extractSkillReferencedPaths(markdown) {
+  const seen = new Set();
+  const matches = markdown.matchAll(
+    /(?:^|[\s(`"'[])((?:references|scripts|assets)\/[a-zA-Z0-9._/-]+)/gm,
+  );
+  for (const m of matches) {
+    const cleaned = m[1].replace(/[.,;:!?)'"`]+$/, '').replace(/\/+$/, '');
+    if (cleaned) seen.add(cleaned);
+  }
+  return [...seen];
+}
+
+export function collectSkillSupportFiles(resolvedSource, skillMarkdown) {
+  const refs = extractSkillReferencedPaths(skillMarkdown);
+  const byRel = new Map();
+
+  const addFile = (relPath, absPath) => {
+    const normalized = relPath.replace(/\\/g, '/');
+    if (!byRel.has(normalized) && fs.existsSync(absPath) && fs.statSync(absPath).isFile()) {
+      byRel.set(normalized, { rel: normalized, full: absPath });
+    }
+  };
+
+  for (const refRel of refs) {
+    const absRef = assertSafeSubpath(resolvedSource, refRel);
+    if (!fs.existsSync(absRef)) continue;
+    const stat = fs.statSync(absRef);
+    if (stat.isFile()) {
+      addFile(refRel, absRef);
+    } else if (stat.isDirectory()) {
+      for (const f of collectRelativeFiles(absRef, refRel)) {
+        addFile(f.rel, f.full);
+      }
+    }
+  }
+
+  // Ensure referenced CLI scripts have their runtime dependencies inside the skill folder
+  if (refs.includes('scripts/install.mjs')) {
+    addFile('core/installer-engine.mjs', path.join(resolvedSource, 'core', 'installer-engine.mjs'));
+    addFile('core/installer-engine.d.ts', path.join(resolvedSource, 'core', 'installer-engine.d.ts'));
+  }
+  if (refs.includes('scripts/afo.ts')) {
+    addFile('scripts/validate-skill-package.ts', path.join(resolvedSource, 'scripts', 'validate-skill-package.ts'));
+    addFile('references/index.json', path.join(resolvedSource, 'references', 'index.json'));
+    for (const f of collectRelativeFiles(path.join(resolvedSource, 'core'), 'core')) {
+      addFile(f.rel, f.full);
+    }
+  }
+
+  return [...byRel.values()];
+}
+
+export function generateAntigravityWorkflow(cmd, skillMarkdown) {
   const { description, body } = parseSkillMarkdown(skillMarkdown);
+  const rewrittenBody = body.replace(
+    /(^|[\s(`"'[])((?:references|scripts|assets)\/[a-zA-Z0-9._/-]+)/gm,
+    '$1../skills/all-for-one/$2',
+  );
   return `---
 description: ${description}
 ---
 
 <!-- Managed by All For One Installer (core/installer-engine.mjs). Source: skills/${cmd}/SKILL.md -->
 
-${body}
+${rewrittenBody}
 
 ## Antigravity Execution Notes
 
-- Retrieve only task-relevant references via \`npx tsx scripts/afo.ts retrieve --query="..."\` or inspect \`.agent/skills/all-for-one/references/\`.
+- Retrieve only task-relevant references via \`npx tsx ../skills/all-for-one/scripts/afo.ts retrieve --query="..."\` or inspect \`../skills/all-for-one/references/\`.
 - Always run \`crazyqa\` verification before marking any milestone VERIFIED.
 `;
 }
@@ -239,23 +295,46 @@ export function buildInstallFilePlan({
   const plannedFiles = [];
   const sharedVaultFolders = ['references', 'scripts', 'assets', 'core'];
 
-  const addSkillTree = (baseDir, cmd, targetName, includeVault) => {
+  const addSkillTree = (baseDir, cmd, targetName, includeFullVault) => {
+    const seenDest = new Set();
     const skillFiles = collectRelativeFiles(path.join(resolvedSource, 'skills', cmd));
     for (const f of skillFiles) {
       const destPath = assertSafeSubpath(baseDir, path.join(cmd, f.rel));
-      plannedFiles.push({
-        destPath,
-        relToBase: path.relative(resolvedTargetRoot, destPath),
-        baseDir,
-        content: fs.readFileSync(f.full),
-        target: targetName,
-      });
+      if (!seenDest.has(destPath)) {
+        seenDest.add(destPath);
+        plannedFiles.push({
+          destPath,
+          relToBase: path.relative(resolvedTargetRoot, destPath),
+          baseDir,
+          content: fs.readFileSync(f.full),
+          target: targetName,
+        });
+      }
     }
-    if (includeVault) {
+    if (includeFullVault) {
       for (const folder of sharedVaultFolders) {
         const vaultFiles = collectRelativeFiles(path.join(resolvedSource, folder), folder);
         for (const f of vaultFiles) {
           const destPath = assertSafeSubpath(baseDir, path.join(cmd, f.rel));
+          if (!seenDest.has(destPath)) {
+            seenDest.add(destPath);
+            plannedFiles.push({
+              destPath,
+              relToBase: path.relative(resolvedTargetRoot, destPath),
+              baseDir,
+              content: fs.readFileSync(f.full),
+              target: targetName,
+            });
+          }
+        }
+      }
+    } else {
+      const rawSkillMd = fs.readFileSync(path.join(resolvedSource, 'skills', cmd, 'SKILL.md'), 'utf8');
+      const supportFiles = collectSkillSupportFiles(resolvedSource, rawSkillMd);
+      for (const f of supportFiles) {
+        const destPath = assertSafeSubpath(baseDir, path.join(cmd, f.rel));
+        if (!seenDest.has(destPath)) {
+          seenDest.add(destPath);
           plannedFiles.push({
             destPath,
             relToBase: path.relative(resolvedTargetRoot, destPath),
@@ -362,6 +441,7 @@ function readExistingManifest(manifestPath) {
 /**
  * Safe non-destructive installer with backup, dry-run, user-customization preservation,
  * force-overwrite (still backed up), and automatic transactional rollback on failure.
+ * @param {import('./installer-engine.d.ts').InstallOptions} options
  */
 export function safeInstall({
   sourceRoot,
@@ -372,7 +452,7 @@ export function safeInstall({
   dryRun = false,
   force = false,
   requireApprovalForForce = false,
-  destructiveApproval = undefined,
+  destructiveApproval,
   simulateFailureAtIndex = -1,
 }) {
   const plan = buildInstallFilePlan({ sourceRoot, targetRoot, target, global, homeDir });
@@ -556,7 +636,9 @@ export function safeInstall({
 
 /**
  * Safely uninstalls ONLY package-owned files recorded in the manifest, preserving
- * user-modified files (unless `force: true`) and never deleting unrelated user files.
+ * user-modified files unless `force: true` (requiring approval when `requireApprovalForForce: true`),
+ * backing up any modified files before removing them, and never deleting unrelated user files.
+ * @param {import('./installer-engine.d.ts').UninstallOptions} options
  */
 export function safeUninstall({
   targetRoot,
@@ -564,79 +646,111 @@ export function safeUninstall({
   homeDir = os.homedir(),
   dryRun = false,
   force = false,
+  requireApprovalForForce = false,
+  destructiveApproval,
 }) {
   const resolvedTargetRoot = validateDestinationRoot(global ? homeDir : targetRoot);
-  const manifestPath = getManifestPath(resolvedTargetRoot, global);
-  const manifest = readExistingManifest(manifestPath);
+  if (force && !dryRun && requireApprovalForForce && !destructiveApproval?.approved) {
+    throw new Error(
+      'Destructive force uninstall requires explicit destructiveApproval.approved = true.',
+    );
+  }
 
-  if (!manifest || !manifest.ownedFiles || typeof manifest.ownedFiles !== 'object') {
+  const lockPath = assertSafeSubpath(resolvedTargetRoot, '.afo-install.lock');
+  return withInstallLock(lockPath, dryRun, () => {
+    const manifestPath = getManifestPath(resolvedTargetRoot, global);
+    const manifest = readExistingManifest(manifestPath);
+
+    if (!manifest || !manifest.ownedFiles || typeof manifest.ownedFiles !== 'object') {
+      return {
+        ok: true,
+        dryRun,
+        removed: [],
+        skippedUserModified: [],
+        backupRoot: null,
+        backedUpModified: [],
+        message: 'No All For One installation manifest found; nothing removed.',
+      };
+    }
+
+    const backupTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupRoot = assertSafeSubpath(
+      resolvedTargetRoot,
+      path.join('.afo-backups', backupTimestamp),
+    );
+
+    const removed = [];
+    const skippedUserModified = [];
+    const backedUpModified = [];
+    const candidateDirs = new Set();
+    const remainingOwned = {};
+
+    for (const [relKey, expectedHash] of Object.entries(manifest.ownedFiles)) {
+      const absPath = assertSafeSubpath(resolvedTargetRoot, relKey);
+      if (!fs.existsSync(absPath)) continue;
+
+      const currentHash = sha256Buffer(fs.readFileSync(absPath));
+      const isUserModified = currentHash !== expectedHash;
+      if (isUserModified && !force) {
+        skippedUserModified.push(relKey);
+        remainingOwned[relKey] = expectedHash;
+        continue;
+      }
+
+      if (isUserModified && force) {
+        backedUpModified.push(relKey);
+        if (!dryRun) {
+          const backupPath = assertSafeSubpath(backupRoot, relKey);
+          fs.mkdirSync(path.dirname(backupPath), { recursive: true });
+          fs.copyFileSync(absPath, backupPath);
+        }
+      }
+
+      removed.push(relKey);
+      if (!dryRun) {
+        fs.unlinkSync(absPath);
+        let dir = path.dirname(absPath);
+        while (dir !== resolvedTargetRoot && dir.startsWith(resolvedTargetRoot + path.sep)) {
+          candidateDirs.add(dir);
+          dir = path.dirname(dir);
+        }
+      }
+    }
+
+    if (!dryRun) {
+      // Prune only empty directories deepest-first
+      const sortedDirs = [...candidateDirs].sort((a, b) => b.length - a.length);
+      for (const d of sortedDirs) {
+        try {
+          if (fs.existsSync(d) && fs.readdirSync(d).length === 0) {
+            fs.rmdirSync(d);
+          }
+        } catch {
+          // Leave non-empty directories intact
+        }
+      }
+
+      if (Object.keys(remainingOwned).length === 0) {
+        if (fs.existsSync(manifestPath)) fs.unlinkSync(manifestPath);
+      } else {
+        manifest.ownedFiles = remainingOwned;
+        atomicWriteFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+      }
+    }
+
     return {
       ok: true,
       dryRun,
-      removed: [],
-      skippedUserModified: [],
-      message: 'No All For One installation manifest found; nothing removed.',
+      removed,
+      skippedUserModified,
+      backupRoot: !dryRun && backedUpModified.length > 0 ? backupRoot : null,
+      backedUpModified,
+      message:
+        removed.length === 0
+          ? 'No unmodified package-owned files were removed.'
+          : `Safely removed ${removed.length} package-owned file(s).`,
     };
-  }
-
-  const removed = [];
-  const skippedUserModified = [];
-  const candidateDirs = new Set();
-  const remainingOwned = {};
-
-  for (const [relKey, expectedHash] of Object.entries(manifest.ownedFiles)) {
-    const absPath = assertSafeSubpath(resolvedTargetRoot, relKey);
-    if (!fs.existsSync(absPath)) continue;
-
-    const currentHash = sha256Buffer(fs.readFileSync(absPath));
-    if (currentHash !== expectedHash && !force) {
-      skippedUserModified.push(relKey);
-      remainingOwned[relKey] = expectedHash;
-      continue;
-    }
-
-    removed.push(relKey);
-    if (!dryRun) {
-      fs.unlinkSync(absPath);
-      let dir = path.dirname(absPath);
-      while (dir !== resolvedTargetRoot && dir.startsWith(resolvedTargetRoot + path.sep)) {
-        candidateDirs.add(dir);
-        dir = path.dirname(dir);
-      }
-    }
-  }
-
-  if (!dryRun) {
-    // Prune only empty directories deepest-first
-    const sortedDirs = [...candidateDirs].sort((a, b) => b.length - a.length);
-    for (const d of sortedDirs) {
-      try {
-        if (fs.existsSync(d) && fs.readdirSync(d).length === 0) {
-          fs.rmdirSync(d);
-        }
-      } catch {
-        // Leave non-empty directories intact
-      }
-    }
-
-    if (Object.keys(remainingOwned).length === 0) {
-      if (fs.existsSync(manifestPath)) fs.unlinkSync(manifestPath);
-    } else {
-      manifest.ownedFiles = remainingOwned;
-      atomicWriteFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
-    }
-  }
-
-  return {
-    ok: true,
-    dryRun,
-    removed,
-    skippedUserModified,
-    message:
-      removed.length === 0
-        ? 'No unmodified package-owned files were removed.'
-        : `Safely removed ${removed.length} package-owned file(s).`,
-  };
+  });
 }
 
 /**

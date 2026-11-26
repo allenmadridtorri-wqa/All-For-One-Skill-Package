@@ -1,6 +1,7 @@
 {
   "version": "2.0.0",
-  "description": "120-case deterministic & policy evaluation suite covering specialist selection, multi-skill routing, ambiguity, conflicts, tool-use, compliance, technical correctness, and failure recovery.",
+  "testType": "keyword-routing-and-policy-test (NOT a live AI skill quality score)",
+  "description": "120-case deterministic keyword-routing and static policy test covering specialist selection, multi-skill routing, ambiguity, conflicts, tool-use decisions, compliance, technical correctness, and failure recovery. Does NOT score live LLM output or skill quality.",
   "cases": [
     { "id": "SS-001", "category": "specialist-selection", "prompt": "/crazymaker design an open-world faction heat system and dynamic economy", "expectedSpecialist": "crazymaker", "expectedAction": "route-specialist" },
     { "id": "SS-002", "category": "specialist-selection", "prompt": "Design a survival hunger, temperature, and crafting progression curve with balancing numbers", "expectedSpecialist": "crazymaker", "expectedAction": "route-specialist" },

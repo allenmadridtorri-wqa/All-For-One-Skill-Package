@@ -16,20 +16,32 @@ metadata:
   version: "3.1.0"
 ---
 
-# `/crazyqa` — Independent QA & Security Director (V3.1)
+# `/crazyqa` — Independent QA & Security Director
 
-You are **CRAZYQA**, an independent verification authority isolated from creative/coding self-reports—including inside Single-AI (`ECONOMY`/`BALANCED`) sessions via `SingleAiOrchestrator.runSeparateQaVerificationPhase()` (`references/single-ai-architecture.md`).
+Follow these steps to verify changes independently from implementation claims and record honest evidence.
 
-## Mandatory V3.1 Verification Scope
+## Step-by-Step Workflow
 
-Execute all applicable checks (`core/qa-verification.ts`, `references/qa-verification-standards.md`):
-- **Static & Security Checks:** Type checks, `scripts/check-hot-loop.ts`, `scripts/audit-pbr-scene.ts`, cross-engine API checks, and `runSecuritySecretScan` across code, render scripts, and memory ledgers.
-- **Automated Tests & Builds:** Unit, integration, end-to-end, regression suites, and build verification with recorded commands, exit codes, and output logs; enforce `ImplementationStatusTracker` (`IMPLEMENTED` never promotes directly to `VERIFIED`).
-- **Runtime, Memory & Performance:** Leak detection (`ResourceLifecycleTracker`), crash detection, and benchmark logs in `PERFORMANCE_LEDGER.md`.
-- **Blender, Cinematics & Cloud Render Verification:**
-  - `evaluateBlenderQaCheck` (`UNVERIFIED` when Blender is absent), `evaluateExportedAssetQaCheck` (validating GLB/glTF/FBX meshes, UVs, normals, rigs, scales), and `inspectVisualRender` (existence alone never passes).
-  - Verify rendered PNG magic bytes (`reconcileRemoteRenderOutputs`) and `ffmpeg` availability (`CinematicProductionTracker.buildVideoAssemblyPlan`); unexecuted remote/FFmpeg runs remain strictly **`UNVERIFIED`**.
+1. **Separate Verification from Implementation**
+   - Treat every earlier edit or creative summary as unverified until you run real checks after the final edit (`references/qa-verification-standards.md`, `references/single-ai-architecture.md`).
 
-## Strict Anti-Fabrication Statuses
+2. **Run Static Analysis and Security Checks**
+   - Check types and project linting (`tsc --noEmit` or the project's lint command).
+   - Scan `src/` for per-frame allocations with `npx tsx scripts/check-hot-loop.ts` and check Three.js PBR configuration with `npx tsx scripts/audit-pbr-scene.ts`.
+   - Inspect changed files for leaked credentials, API tokens, unsafe path traversal, or unredacted error outputs.
 
-Classify every check strictly as **`VERIFIED`**, **`PARTIALLY_VERIFIED`**, **`UNVERIFIED`**, or **`FAILED`**. Never report an unexecuted test, unexecuted Colab job, or absent binary as passed. Escalate failures via `CollaborationCoordinator.recordFailure`.
+3. **Run Tests and Builds**
+   - Execute the repository's automated unit, integration, and build commands and capture the exact command, exit code, and summary output.
+   - Do not promote an unverified feature based on code inspection alone.
+
+4. **Verify External Renders, Media, and Exported Assets Honestly**
+   - Check tool availability first with `node scripts/install.mjs --check-tools`.
+   - Verify visual renders or exported 3D assets only against real files on disk and explicit visual acceptance criteria—file existence alone is never enough for full verification.
+   - If `blender`, `ffmpeg`, target engine binaries, or remote cloud GPU sessions were not executed in the current environment, mark those checks `UNVERIFIED`.
+
+5. **Classify Every Check Strictly**
+   - Assign each check one of four statuses:
+     - `VERIFIED` — Executed after final edits and passed with concrete tool/artifact evidence.
+     - `PARTIALLY_VERIFIED` — Core checks passed while some targets remain unexecuted.
+     - `UNVERIFIED` — Not run in the current environment.
+     - `FAILED` — Executed and produced errors, failed assertions, or security findings.
