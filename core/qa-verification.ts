@@ -1,5 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {
+  inspectRenderArtifactFile,
+  validateGeneratedAssetFile,
+  type AssetValidationReport,
+} from './asset-validation.ts';
 import { detectBlenderInstallation, type BlenderExecutionResult } from './blender-bridge.ts';
 import { scanForSecrets, type SecretFinding } from './security.ts';
 
@@ -171,6 +176,40 @@ export function evaluateBlenderQaCheck(
     exitCode: blenderExec.exitCode,
     logsExcerpt: (blenderExec.stderr || blenderExec.stdout).slice(0, 300),
     evidence: blenderExec.reason,
+  };
+}
+
+/**
+ * Evaluates generated 3D assets (GLB/glTF/FBX) or render artifacts into strict QA records.
+ */
+export function evaluateAssetValidationQa(
+  rootDir: string,
+  relPath: string,
+  criteria: string[] = [],
+): VerificationCheckRecord {
+  const ext = path.extname(relPath).toLowerCase();
+  if (ext === '.png' || ext === '.jpg' || ext === '.jpeg' || ext === '.webp') {
+    const inspected = inspectRenderArtifactFile(rootDir, relPath, criteria);
+    return {
+      id: `QA-RENDER-${path.basename(relPath)}`,
+      category: 'screenshot-visual',
+      description: `Inspect render artifact ${relPath}`,
+      status: inspected.status,
+      commandOrSource: 'core/asset-validation.ts#inspectRenderArtifactFile',
+      exitCode: inspected.status === 'FAILED' ? 1 : 0,
+      evidence: inspected.reason,
+    };
+  }
+
+  const report: AssetValidationReport = validateGeneratedAssetFile(rootDir, relPath);
+  return {
+    id: `QA-ASSET-${path.basename(relPath)}`,
+    category: 'asset-pipeline',
+    description: `Validate generated 3D asset ${relPath}`,
+    status: report.status,
+    commandOrSource: 'core/asset-validation.ts#validateGeneratedAssetFile',
+    exitCode: report.status === 'FAILED' ? 1 : 0,
+    evidence: report.summary,
   };
 }
 

@@ -2,6 +2,20 @@
 
 All notable changes to the **All-For-One Skill Package** are documented in this file.
 
+## [3.2.0] — The 130-Year Expertise Initiative (Photorealism, T4 Model Registry & Antigravity MCP Bridge)
+
+### Added
+- **Verified Generative Model Capability Registry (`core/model-registry.ts`, `references/model-capability-registry.md`)**: Curated 10 open-weight models (`TripoSR`, `Stable Fast 3D`, `TRELLIS`, `TRELLIS.2`, `Hunyuan3D-2.0`, `SDXL Base 1.0`, `FLUX.1-schnell`, `Real-ESRGAN`, `Depth Anything V2 Small`, `Wan2.1 T2V-1.3B`) with explicit code-vs-weight license separation, regional/revenue restrictions, T4 16 GB VRAM fit classification (blocking 24 GB+ `TRELLIS.2`), and honest lifecycle status tracking (`DISCOVERED` .. `OUTPUT_VERIFIED`).
+- **Intelligent Task & Pipeline Router (`core/model-routing.ts`)**: Multi-stage routing for `product-vehicle`, `architecture-interior`, `natural-landscape`, `character-creature`, and `playable-3d-scene` with zero-paid-API enforcement, hosted HF Space -> Colab T4 fallback, and strict 5-way deliverable distinction (`Concept Image` != `AI Raw Mesh` != `Refined PBR Asset` != `Completed Scene` != `Playable Environment`).
+- **Free & Open-Source Asset Catalog (`references/open-asset-ecosystem.md`, `OPEN_ASSET_SOURCES`)**: Documented CC0 sources (`Poly Haven`, `ambientCG`, `Kenney`, `Quaternius`) and per-asset license audit requirements for `OpenGameArt`.
+- **Antigravity Local MCP-Compatible Bridge (`core/mcp-bridge.ts`, `scripts/mcp-bridge.ts`, `references/antigravity-colab-t4-bridge.md`)**: Added local stdio JSON-RPC 2.0 server and CLI exposing all 10 bridge tools (`get_compute_profile`, `list_compatible_models`, `inspect_model_requirements`, `prepare_colab_job`, `validate_job_manifest`, `get_job_status`, `inspect_job_outputs`, `import_colab_results`, `validate_generated_asset`, `inspect_render_artifacts`).
+- **Structural 3D Asset & Visual Render Validation (`core/asset-validation.ts`, `core/qa-verification.ts`)**: Added real binary GLB/glTF inspection (`glTF` magic/version/JSON chunk, `POSITION`/`NORMAL`/`TEXCOORD_0`, `pbrMetallicRoughness`, node scale, external texture checks), FBX headers, and PNG IHDR dimension + visual criteria verification.
+- **Photorealism Production Recipes & T4 Tests (`references/photorealism-production-recipes.md`, `scripts/v3_2-framework.test.ts`)**: Added 12-section authoritative domain guides (`32` indexed references total) and comprehensive unit/integration tests for all V3.2 systems.
+
+### Changed
+- **Strict NVIDIA T4 + Standard Dynamic System RAM Colab Worker (`core/cloud-rendering.ts`, `assets/colab/colab_blender_worker.py`, `references/cloud-colab-rendering.md`, `docs/CLOUD_RENDERING.md`)**: Enforced `15,360` MB safe T4 ceiling, dynamic `/proc/meminfo` & `os.totalmem()` checks, `MyDrive/ALL_FOR_ONE/jobs/<job_id>` Drive layout, `PREVIEW` / `LOOK_DEVELOPMENT` / `FINAL_T4_RENDER` quality profiles, single-job GPU isolation, OOM logging, and interactive notebook execution (never assuming `L4`/`A100`/`H100` or always-on free Colab servers).
+- **Refined 5 Specialist Skills & Installer (`skills/*/SKILL.md`, `core/installer-engine.mjs`, `scripts/afo.ts`)**: Integrated 130-year expertise workflows cleanly in plain step-by-step format, added `models`, `route`, `validate-asset`, `prepare-colab-t4`, and `mcp-tools` CLI subcommands, and ensured installed packages automatically include `scripts/mcp-bridge.ts` runtime dependencies.
+
 ## [3.1.0] — Single-AI-First Engineering & Creative Production Upgrade
 
 ### Added

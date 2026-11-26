@@ -1,7 +1,7 @@
 {
   "name": "all-for-one-skill-package",
   "private": true,
-  "version": "3.1.0",
+  "version": "3.2.0",
   "type": "module",
   "bin": {
     "all-for-one": "./scripts/install.mjs",
@@ -23,8 +23,10 @@
     "afo:eval": "tsx scripts/afo.ts eval",
     "afo:eval:legacy": "tsx scripts/afo.ts eval-triggers",
     "afo:retrieve": "tsx scripts/afo.ts retrieve",
+    "afo:models": "tsx scripts/afo.ts models --t4-only",
+    "afo:mcp": "tsx scripts/mcp-bridge.ts",
     "afo:qa": "tsx scripts/afo.ts qa-report",
-    "afo:test": "tsx --test scripts/afo.test.ts scripts/v2-framework.test.ts scripts/v3-framework.test.ts scripts/v3_1-framework.test.ts"
+    "afo:test": "tsx --test scripts/afo.test.ts scripts/v2-framework.test.ts scripts/v3-framework.test.ts scripts/v3_1-framework.test.ts scripts/v3_2-framework.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

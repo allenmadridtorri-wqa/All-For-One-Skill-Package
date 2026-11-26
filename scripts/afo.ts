@@ -3,8 +3,18 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import zlib from 'node:zlib';
+import {
+  inspectRenderArtifactFile,
+  validateGeneratedAssetFile,
+} from '../core/asset-validation.ts';
 import { createCinematicProductionPlan } from '../core/cinematic-production.ts';
-import { evaluateHardwareRenderRouting } from '../core/cloud-rendering.ts';
+import {
+  evaluateHardwareRenderRouting,
+  prepareColabRenderPackage,
+  prepareColabT4InferenceJob,
+  T4_QUALITY_PROFILES,
+  type T4QualityProfileId,
+} from '../core/cloud-rendering.ts';
 import { type EngineId } from '../core/engine-profiles.ts';
 import { runEvaluationSuiteV2, runEvaluationSuiteV3 } from '../core/evaluator.ts';
 import {
@@ -20,9 +30,19 @@ import {
   retrieveTaskKnowledge,
   type CoreSpecialistId,
 } from '../core/knowledge-retrieval.ts';
+import { MCP_BRIDGE_TOOLS } from '../core/mcp-bridge.ts';
+import {
+  assessModelCompatibility,
+  detectComputeProfile,
+  listModels,
+  OPEN_ASSET_SOURCES,
+  type ModelCategory,
+} from '../core/model-registry.ts';
+import { routeProductionTask, type VisualTaskDomain } from '../core/model-routing.ts';
 import { detectHardwareProfile } from '../core/production-intelligence.ts';
 import {
   buildVerificationReport,
+  evaluateAssetValidationQa,
   evaluateBlenderQaCheck,
   formatVerificationReportMarkdown,
   runSecuritySecretScan,
@@ -471,10 +491,122 @@ function main(): void {
 
   if (subcommand === 'colab-check') {
     const hw = detectHardwareProfile();
+    const compute = detectComputeProfile('colab-t4-target');
     const frames = Number(getFlag('--frames=') ?? '240');
     const engine = (getFlag('--engine=') ?? 'CYCLES') as 'CYCLES' | 'BLENDER_EEVEE_NEXT';
     const routing = evaluateHardwareRenderRouting(hw, frames, engine);
-    console.log(JSON.stringify({ hardware: hw, routing }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          hardware: hw,
+          colabTarget: compute,
+          t4QualityProfiles: T4_QUALITY_PROFILES,
+          routing,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  if (subcommand === 'models') {
+    const category = getFlag('--category=') as ModelCategory | undefined;
+    const t4Only = args.includes('--t4-only');
+    const commercialOnly = args.includes('--commercial-only');
+    const compute = detectComputeProfile('colab-t4-target');
+    const selected = listModels({ category, t4Only, commercialOnly }).map((m) => ({
+      ...m,
+      compatibility: assessModelCompatibility(m.id, compute, {
+        requireCommercial: commercialOnly,
+      }),
+    }));
+    console.log(
+      JSON.stringify(
+        {
+          computeTarget: compute,
+          models: selected,
+          openAssetSources: OPEN_ASSET_SOURCES,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  if (subcommand === 'route') {
+    const domain = (getFlag('--domain=') ?? 'product-vehicle') as VisualTaskDomain;
+    const engine = (getFlag('--engine=') ?? 'blender-only') as EngineId | 'blender-only';
+    const preferHosted = args.includes('--prefer-hosted');
+    const hostedReachable = args.includes('--hosted-reachable');
+    const plan = routeProductionTask({
+      taskDomain: domain,
+      engine,
+      preferHostedSpace: preferHosted,
+      hostedSpaceReachable: hostedReachable,
+    });
+    console.log(JSON.stringify(plan, null, 2));
+    return;
+  }
+
+  if (subcommand === 'validate-asset') {
+    const fileRel = getFlag('--file=');
+    if (!fileRel) {
+      console.error('Missing --file=<relative-path>');
+      process.exit(1);
+    }
+    const ext = path.extname(fileRel).toLowerCase();
+    if (ext === '.png' || ext === '.jpg' || ext === '.jpeg' || ext === '.webp') {
+      const criteriaRaw = getFlag('--criteria=') ?? '';
+      const criteria = criteriaRaw ? criteriaRaw.split(',').map((s) => s.trim()).filter(Boolean) : [];
+      const res = inspectRenderArtifactFile(rootDir, fileRel, criteria);
+      console.log(JSON.stringify(res, null, 2));
+      if (res.status === 'FAILED') process.exit(1);
+      return;
+    }
+    const res = validateGeneratedAssetFile(rootDir, fileRel);
+    console.log(JSON.stringify(res, null, 2));
+    if (res.status === 'FAILED') process.exit(1);
+    return;
+  }
+
+  if (subcommand === 'prepare-colab-t4') {
+    const jobId = getFlag('--job=') ?? 'afo_t4_job';
+    const jobType = getFlag('--type=') === 'inference' ? 't4-model-inference' : 'blender-render';
+    const profile = (getFlag('--profile=') ?? 'LOOK_DEVELOPMENT').toUpperCase() as T4QualityProfileId;
+    const workerTemplate = path.join(rootDir, 'assets', 'colab', 'colab_blender_worker.py');
+    if (jobType === 't4-model-inference') {
+      const modelId = getFlag('--model=') ?? 'triposr';
+      const pkg = prepareColabT4InferenceJob(rootDir, {
+        jobId,
+        modelId,
+        qualityProfile: profile,
+        workerScriptTemplatePath: fs.existsSync(workerTemplate) ? workerTemplate : undefined,
+      });
+      console.log(JSON.stringify({ ok: true, jobDir: pkg.packageDir, manifest: pkg.manifestPath }, null, 2));
+      return;
+    }
+    const plan = createCinematicProductionPlan({
+      projectId: jobId,
+      title: `Colab T4 Render ${jobId}`,
+      creativeBrief: 'T4 chunked render job',
+      durationSec: Number(getFlag('--duration=') ?? '4'),
+      fps: Number(getFlag('--fps=') ?? '24'),
+      chunkSizeFrames: 24,
+    });
+    const pkg = prepareColabRenderPackage(rootDir, {
+      plan,
+      blendRelPath: getFlag('--blend=') ?? 'scenes/scene.blend',
+      qualityProfile: profile,
+      workerScriptTemplatePath: fs.existsSync(workerTemplate) ? workerTemplate : undefined,
+    });
+    console.log(JSON.stringify({ ok: true, jobDir: pkg.packageDir, manifest: pkg.manifestPath }, null, 2));
+    return;
+  }
+
+  if (subcommand === 'mcp-tools') {
+    console.log(JSON.stringify({ server: 'scripts/mcp-bridge.ts', tools: MCP_BRIDGE_TOOLS }, null, 2));
     return;
   }
 
@@ -651,14 +783,16 @@ function main(): void {
       secScan.check,
       blenderCheck,
     ];
-    const report = buildVerificationReport('All-For-One V3.1', checks, []);
+    const assetCheckPath = getFlag('--asset=');
+    const assetChecks = assetCheckPath ? [evaluateAssetValidationQa(rootDir, assetCheckPath)] : [];
+    const report = buildVerificationReport('All-For-One V3.2', [...checks, ...assetChecks], []);
     const md = formatVerificationReportMarkdown(report);
     fs.writeFileSync(path.join(rootDir, 'VERIFICATION_REPORT.md'), md);
     console.log(`Generated VERIFICATION_REPORT.md (overall=${report.overallStatus}).`);
     return;
   }
 
-  console.log(`All-For-One V3.1 CLI (scripts/afo.ts)
+  console.log(`All-For-One V3.2 CLI (scripts/afo.ts)
 
 Usage:
   npx tsx scripts/afo.ts validate
@@ -669,6 +803,11 @@ Usage:
   npx tsx scripts/afo.ts check-tools
   npx tsx scripts/afo.ts single-ai-check [--mode=ECONOMY|BALANCED|ACCELERATION]
   npx tsx scripts/afo.ts colab-check [--frames=240] [--engine=CYCLES|BLENDER_EEVEE_NEXT]
+  npx tsx scripts/afo.ts models [--category=3d-generation|image-generation|asset-enhancement|animation-video] [--t4-only] [--commercial-only]
+  npx tsx scripts/afo.ts route --domain=product-vehicle|architecture-interior|natural-landscape|character-creature|playable-3d-scene [--engine=...]
+  npx tsx scripts/afo.ts validate-asset --file=<relative-path> [--criteria="lighting,silhouette"]
+  npx tsx scripts/afo.ts prepare-colab-t4 --job=<id> [--type=render|inference] [--model=triposr] [--profile=LOOK_DEVELOPMENT]
+  npx tsx scripts/afo.ts mcp-tools
   npx tsx scripts/afo.ts cinematic-plan [--duration=90] [--fps=24]
   npx tsx scripts/afo.ts eval
   npx tsx scripts/afo.ts retrieve --query="..." [--specialist=...] [--engine=...] [--budget=4000]

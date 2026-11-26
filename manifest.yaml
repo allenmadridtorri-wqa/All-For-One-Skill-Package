@@ -1,12 +1,12 @@
 name: all-for-one
-displayName: "All-For-One V3.1 — Single-AI-First Engineering & Creative Production Framework"
-version: 3.1.0
+displayName: "All-For-One V3.2 — 130-Year Expertise Single-AI Engineering & Creative Production Framework"
+version: 3.2.0
 license: Apache-2.0
 description: >-
-  Single-AI-first engineering and creative production framework coordinating
-  CRAZY (Orchestrator), CRAZYMAKER (Game Director), CRAZYDESIGNER (Visual,
-  Blender & Cinematic Production), CRAZYCODER (Engineering & Architecture), and
-  CRAZYQA (Independent QA & Security) across Claude, Antigravity, and ChatGPT/Codex.
+  Single-AI-first engineering and photorealistic creative production framework
+  combining 40-year AAA game direction (CRAZYMAKER), 40-year Hollywood 3D/VFX
+  production (CRAZYDESIGNER), 50-year principal software/engine architecture
+  (CRAZYCODER), T4 Colab Drive orchestration, and independent QA (CRAZYQA).
 
 commands:
   - name: crazy

@@ -212,7 +212,7 @@ export function collectSkillSupportFiles(resolvedSource, skillMarkdown) {
     addFile('core/installer-engine.mjs', path.join(resolvedSource, 'core', 'installer-engine.mjs'));
     addFile('core/installer-engine.d.ts', path.join(resolvedSource, 'core', 'installer-engine.d.ts'));
   }
-  if (refs.includes('scripts/afo.ts')) {
+  if (refs.includes('scripts/afo.ts') || refs.includes('scripts/mcp-bridge.ts')) {
     addFile('scripts/validate-skill-package.ts', path.join(resolvedSource, 'scripts', 'validate-skill-package.ts'));
     addFile('references/index.json', path.join(resolvedSource, 'references', 'index.json'));
     for (const f of collectRelativeFiles(path.join(resolvedSource, 'core'), 'core')) {
@@ -240,6 +240,7 @@ ${rewrittenBody}
 ## Antigravity Execution Notes
 
 - Retrieve only task-relevant references via \`npx tsx ../skills/all-for-one/scripts/afo.ts retrieve --query="..."\` or inspect \`../skills/all-for-one/references/\`.
+- Start the local stdio Antigravity MCP bridge when needed via \`npx tsx ../skills/all-for-one/scripts/mcp-bridge.ts\` (Colab jobs target NVIDIA T4 16 GB + standard RAM under \`MyDrive/ALL_FOR_ONE/jobs/<job_id>\`).
 - Always run \`crazyqa\` verification before marking any milestone VERIFIED.
 `;
 }
@@ -569,7 +570,7 @@ export function safeInstall({
 
       const lockPayload = {
         package: 'all-for-one',
-        version: '3.0.0',
+        version: '3.2.0',
         scope: global ? 'global' : 'workspace',
         targets: plan.targets,
         commands: plan.availableCommands,

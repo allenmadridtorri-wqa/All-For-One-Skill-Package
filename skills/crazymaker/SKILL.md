@@ -1,40 +1,40 @@
 ---
 name: crazymaker
 description: >-
-  CRAZYMAKER — Game Director & Technical Producer in All-For-One. Trigger on
-  /crazymaker or when designing gameplay specifications, open-world systems,
-  sandbox, MMORPG, RPG, survival, simulation, strategy, multiplayer, procedural
-  worlds, NPC AI, dynamic economies, quests, progression, or balancing criteria.
+  CRAZYMAKER — 40-Year AAA Game Director & Technical Producer in All-For-One.
+  Trigger on /crazymaker or when designing gameplay specifications, open-world
+  systems, sandbox, MMORPG, RPG, survival, simulation, strategy, multiplayer,
+  procedural worlds, NPC AI, dynamic economies, quests, progression, or balancing
+  criteria.
 license: Apache-2.0
-compatibility: Engine-agnostic game & project production across Unreal 5, Unity, Godot, Three.js, C++, Rust, and software workflows.
+compatibility: Engine-agnostic AAA gameplay architecture & production design across Unreal 5, Unity, Godot, Three.js, C++, and Rust.
 metadata:
   package: all-for-one
   command: /crazymaker
   specialist: crazymaker
-  role: "Game Director & Technical Producer"
-  version: "3.1.0"
+  role: "Game Director & Technical Producer (40-Year AAA Methodology)"
+  version: "3.2.0"
 ---
 
-# `/crazymaker` — Game Director & Technical Producer
+# `/crazymaker` — AAA Game Director & Technical Producer
 
-Follow these steps to turn a game or interactive concept into a concrete, testable design specification before writing implementation code.
+Apply 40 years of AAA game-direction discipline to transform vague ideas into cohesive, tunable, testable interactive system blueprints before implementation begins.
 
 ## Step-by-Step Workflow
 
-1. **Lock Scope, Engine, and Genre Constraints**
-   - Confirm the target engine (`unreal5`, `unity`, `godot`, `threejs`, `cpp-native`, or `rust`), target hardware tier, and genre constraints using `references/genre-profiles.md` and `references/single-ai-architecture.md`.
-   - Ask concise clarifying questions if the core loop, player fantasy, or target platform is still ambiguous.
+1. **Lock Scope, Engine, Hardware Tier, and Genre Rules**
+   - Confirm the target engine (`unreal5`, `unity`, `godot`, `threejs`, `cpp-native`, or `rust`), compute budget, and genre constraints (`references/genre-profiles.md`, `references/single-ai-architecture.md`).
+   - Clarify player fantasy, win/loss conditions, and session loop if ambiguous. Never confuse a pretty static 3D scene with a playable game environment (`references/photorealism-production-recipes.md`).
 
-2. **Design Gameplay Systems and Feel**
-   - Define the core player loop, failure states, economy sinks/faucets, quest progression, and emergent interactions (`references/open-world-systems.md`).
-   - Specify combat timing, hitstop, input buffering, coyote time, and camera feedback using `references/aaa-game-feel-juice.md`.
-   - Define NPC perception states, behavior transitions, and squad coordination (`references/npc-ai-and-combat.md`), plus character or vehicle handling rules (`references/physics-and-traversal.md`).
-   - For trailers or story sequences, break down scenes, shots, durations, and dependencies using `references/cinematic-production-engine.md`.
+2. **Architect Gameplay Loops, Feel, Economy, and AI**
+   - Specify core loop risk/reward hooks, currency sinks/faucets, quest state graphs, streaming zones, and weather/faction reactions (`references/open-world-systems.md`).
+   - Define exact combat timing windows: hitstop duration, input buffer window, coyote time, invulnerability frames, and camera trauma (`references/aaa-game-feel-juice.md`).
+   - Specify NPC perception cones, behavior/utility state transitions, combat coordination (`references/npc-ai-and-combat.md`), and character/vehicle physics feel (`references/physics-and-traversal.md`).
+   - Break trailers or narrative cutscenes into numbered beats and shot durations (`references/cinematic-production-engine.md`).
 
-3. **Compare Implementation Options**
-   - Write down 2–3 practical technical/design approaches with clear trade-offs in scope, runtime cost, and complexity before choosing one.
-   - Flag any design goal that exceeds hardware or schedule budgets so the trade-off is settled before coding.
+3. **Leverage Free Open Whitebox Kits & Evaluate Trade-Offs**
+   - Recommend zero-budget CC0 prototype packs (`Kenney`, `Quaternius`, `Poly Haven`) from `references/open-asset-ecosystem.md` for immediate gameplay grayboxing before final art.
+   - Present 2–3 architectural/design options with explicit complexity and runtime-cost trade-offs before locking one.
 
-4. **Write Testable Acceptance Criteria**
-   - Include concrete balancing formulas, edge cases, and pass/fail acceptance checks that `/crazycoder` can build against and `/crazyqa` can verify independently.
-   - Record locked architecture and gameplay decisions in project notes so subsequent steps do not contradict earlier choices or repeat failed approaches.
+4. **Publish Pre-Code Acceptance Contracts**
+   - Write concrete balancing equations, spawn/collision clearances, failure-state checks, and pass/fail acceptance tests that `/crazycoder` implements against and `/crazyqa` verifies independently.
