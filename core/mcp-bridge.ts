@@ -22,7 +22,14 @@ import {
   OPEN_ASSET_SOURCES,
   type ModelCategory,
 } from './model-registry.ts';
+import { inspectGradioSpaceSchema } from './hosted-providers.ts';
 import { assertSafeSubpathSync } from './security.ts';
+import {
+  ALL_BUDGET_TARGETS,
+  auditAllTargetsTokenBudget,
+  measureTargetTokenBudget,
+  type BudgetTargetId,
+} from './token-budget.ts';
 
 export interface McpToolDefinition {
   name: string;
@@ -172,6 +179,34 @@ export const MCP_BRIDGE_TOOLS: McpToolDefinition[] = [
         criteria: { type: 'array', items: { type: 'string' } },
       },
       required: ['filePath'],
+    },
+  },
+  {
+    name: 'get_token_budget_report',
+    description:
+      'Measure startup and active task token budgets across all supported AI targets (antigravity, claude, chatgpt, custom-gpt, cursor, windsurf, cline, copilot, gemini-cli, opencode) enforcing >= 85% token reduction.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        target: {
+          type: 'string',
+          enum: [...ALL_BUDGET_TARGETS, 'all'],
+        },
+        query: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'inspect_hosted_space',
+    description:
+      'Inspect a Hugging Face Gradio Space API schema with HTTPS/host allowlist and Colab T4 fallback detection.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        spaceId: { type: 'string' },
+        modelId: { type: 'string' },
+      },
+      required: ['spaceId'],
     },
   },
 ];
@@ -367,6 +402,22 @@ export function executeMcpTool(
       return { ok: inspection.status !== 'FAILED', tool: toolName, data: inspection };
     }
 
+    if (toolName === 'get_token_budget_report') {
+      const target = String(rawArgs.target ?? 'all').trim();
+      const query = String(rawArgs.query ?? 'photorealistic vehicle lighting pbr');
+      if (target && target !== 'all') {
+        if (!(ALL_BUDGET_TARGETS as readonly string[]).includes(target)) {
+          return { ok: false, tool: toolName, error: `Unknown budget target "${target}"` };
+        }
+        return {
+          ok: true,
+          tool: toolName,
+          data: measureTargetTokenBudget(workspaceDir, target as BudgetTargetId, query),
+        };
+      }
+      return { ok: true, tool: toolName, data: auditAllTargetsTokenBudget(workspaceDir, query) };
+    }
+
     return { ok: false, tool: toolName, error: `Unknown MCP bridge tool: "${toolName}"` };
   } catch (err) {
     return {
@@ -375,4 +426,24 @@ export function executeMcpTool(
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+export async function executeMcpToolAsync(
+  toolName: string,
+  rawArgs: Record<string, unknown> = {},
+  workspaceDir: string = process.cwd(),
+): Promise<McpToolCallResult> {
+  if (toolName === 'inspect_hosted_space') {
+    const spaceId = String(rawArgs.spaceId ?? '').trim();
+    if (!spaceId) return { ok: false, tool: toolName, error: 'Missing required parameter: spaceId' };
+    const modelId = typeof rawArgs.modelId === 'string' ? rawArgs.modelId : undefined;
+    const result = await inspectGradioSpaceSchema(spaceId, { modelId });
+    return {
+      ok: result.status !== 'INVALID_TARGET',
+      tool: toolName,
+      data: result,
+      error: result.status === 'INVALID_TARGET' ? result.warnings.join(' ') : undefined,
+    };
+  }
+  return executeMcpTool(toolName, rawArgs, workspaceDir);
 }

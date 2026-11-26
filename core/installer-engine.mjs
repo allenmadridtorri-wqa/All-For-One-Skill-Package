@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 export const FRONTIER_TARGETS = ['claude', 'antigravity', 'chatgpt'];
+export const EXTENDED_TARGETS = ['cursor', 'windsurf', 'cline', 'copilot', 'gemini-cli', 'opencode'];
+export const SUPPORTED_TARGETS = [...FRONTIER_TARGETS, ...EXTENDED_TARGETS];
 export const SKILL_COMMANDS = ['crazy', 'crazydesigner', 'crazymaker', 'crazycoder', 'crazyqa'];
 
 /**
@@ -223,6 +225,48 @@ export function collectSkillSupportFiles(resolvedSource, skillMarkdown) {
   return [...byRel.values()];
 }
 
+export function generateCompactTargetRouter(targetName, skillRelRoot = '.') {
+  const specs = {
+    antigravity: { label: 'Google Antigravity', maxStartup: 520, maxActive: 3200, budget: 1800, maxDocs: 3 },
+    claude: { label: 'Claude Code / Desktop', maxStartup: 580, maxActive: 3400, budget: 1900, maxDocs: 3 },
+    chatgpt: { label: 'OpenAI Codex CLI', maxStartup: 580, maxActive: 3400, budget: 1900, maxDocs: 3 },
+    cursor: { label: 'Cursor IDE', maxStartup: 480, maxActive: 3000, budget: 1700, maxDocs: 3 },
+    windsurf: { label: 'Windsurf IDE', maxStartup: 480, maxActive: 3000, budget: 1700, maxDocs: 3 },
+    cline: { label: 'Cline / Roo Code', maxStartup: 480, maxActive: 3000, budget: 1700, maxDocs: 3 },
+    copilot: { label: 'GitHub Copilot', maxStartup: 460, maxActive: 2900, budget: 1650, maxDocs: 2 },
+    'gemini-cli': { label: 'Gemini CLI', maxStartup: 500, maxActive: 3100, budget: 1800, maxDocs: 3 },
+    opencode: { label: 'OpenCode / AGENTS.md', maxStartup: 500, maxActive: 3100, budget: 1800, maxDocs: 3 },
+  };
+  const cfg = specs[targetName] || specs.antigravity;
+  const rel = skillRelRoot.replace(/\/+$/, '');
+  const afoCli = rel === '.' ? 'scripts/afo.ts' : `${rel}/scripts/afo.ts`;
+
+  const lines = [
+    `# All-For-One V3.2 — Compact Token-Budgeted Router (${cfg.label})`,
+    '',
+    `Token Budget Contract: Startup <= ${cfg.maxStartup} tok | Active Turn <= ${cfg.maxActive} tok | >= 85% savings vs full vault.`,
+    'Default Mode: Single-AI `ECONOMY` (one model, sequential specialists, deterministic CLI checks; multi-agent requires approval).',
+    '',
+    '## Specialists & Triggers',
+    '- `/crazy`: Multi-discipline orchestration (gameplay + 3D/visuals + code + QA).',
+    '- `/crazymaker`: AAA game loops, quests, economies, NPC AI, combat balancing.',
+    '- `/crazydesigner`: Photoreal 3D, Blender `bpy`, PBR, ACES lighting, VFX, Colab T4 jobs.',
+    '- `/crazycoder`: Engine-strict C++/C#/GDScript/TS/Rust, zero-GC hot loops, security.',
+    '- `/crazyqa`: Independent tests, GLB/PNG inspection, honest verification (`VERIFIED`..`FAILED`).',
+    '',
+    '## Lazy Retrieval & Offload Commands (Never Load Whole references/)',
+    `- Retrieve <= ${cfg.maxDocs} docs (${cfg.budget} tok cap): \`npx tsx ${afoCli} retrieve --query="<topic>" --budget=${cfg.budget} --compact\``,
+    `- Visual recipe & T4 routing: \`npx tsx ${afoCli} route --domain=<domain>\` | \`npx tsx ${afoCli} models --t4-only\``,
+    `- Colab T4 Drive job (\`MyDrive/ALL_FOR_ONE/jobs/<id>\`): \`npx tsx ${afoCli} prepare-colab-t4 --job=<id>\``,
+    `- Asset & QA gates: \`npx tsx ${afoCli} validate-asset --file=<path>\` | never fabricate unrun renders, Blender, or APIs.`,
+  ];
+
+  if (targetName === 'cursor') {
+    return `---\ndescription: All-For-One V3.2 token-budgeted AI engineering & 3D/game router\nalwaysApply: true\n---\n\n${lines.join('\n')}\n`;
+  }
+  return lines.join('\n') + '\n';
+}
+
 export function generateAntigravityWorkflow(cmd, skillMarkdown) {
   const { description, body } = parseSkillMarkdown(skillMarkdown);
   const rewrittenBody = body.replace(
@@ -237,9 +281,9 @@ description: ${description}
 
 ${rewrittenBody}
 
-## Antigravity Execution Notes
+## Antigravity Execution Notes (Token-Budgeted ECONOMY Mode)
 
-- Retrieve only task-relevant references via \`npx tsx ../skills/all-for-one/scripts/afo.ts retrieve --query="..."\` or inspect \`../skills/all-for-one/references/\`.
+- Enforce >= 85% token savings: retrieve only <= 3 docs (<= 1,800 tokens) via \`npx tsx ../skills/all-for-one/scripts/afo.ts retrieve --query="..." --budget=1800 --compact\`.
 - Start the local stdio Antigravity MCP bridge when needed via \`npx tsx ../skills/all-for-one/scripts/mcp-bridge.ts\` (Colab jobs target NVIDIA T4 16 GB + standard RAM under \`MyDrive/ALL_FOR_ONE/jobs/<job_id>\`).
 - Always run \`crazyqa\` verification before marking any milestone VERIFIED.
 `;
@@ -276,11 +320,11 @@ export function buildInstallFilePlan({
 }) {
   const resolvedSource = validateDestinationRoot(sourceRoot);
   const resolvedTargetRoot = validateDestinationRoot(global ? homeDir : targetRoot);
-  const targets = target === 'all' ? [...FRONTIER_TARGETS] : [target];
+  const targets = target === 'all' ? [...SUPPORTED_TARGETS] : [target];
 
   for (const t of targets) {
-    if (!FRONTIER_TARGETS.includes(t)) {
-      throw new Error(`Unsupported frontier target "${t}". Allowed: ${FRONTIER_TARGETS.join(', ')}`);
+    if (!SUPPORTED_TARGETS.includes(t)) {
+      throw new Error(`Unsupported frontier target "${t}". Allowed: ${SUPPORTED_TARGETS.join(', ')}`);
     }
   }
 
@@ -391,6 +435,22 @@ export function buildInstallFilePlan({
       }
     }
 
+    // Compact always-on Antigravity rule (<= 520 tokens startup footprint)
+    const agRuleBase = global
+      ? assertSafeSubpath(resolvedTargetRoot, path.join('.gemini', 'antigravity', 'rules'))
+      : assertSafeSubpath(resolvedTargetRoot, path.join('.agent', 'rules'));
+    const agRuleDest = assertSafeSubpath(agRuleBase, 'all-for-one.md');
+    plannedFiles.push({
+      destPath: agRuleDest,
+      relToBase: path.relative(resolvedTargetRoot, agRuleDest),
+      baseDir: agRuleBase,
+      content: Buffer.from(
+        generateCompactTargetRouter('antigravity', global ? '~/.gemini/antigravity/skills/all-for-one' : '.agent/skills/all-for-one'),
+        'utf8',
+      ),
+      target: 'antigravity',
+    });
+
     // Workflows for each slash command
     for (const cmd of availableCommands) {
       const rawSkill = fs.readFileSync(path.join(resolvedSource, 'skills', cmd, 'SKILL.md'), 'utf8');
@@ -413,6 +473,71 @@ export function buildInstallFilePlan({
     for (const cmd of availableCommands) {
       addSkillTree(gptBase, cmd, 'chatgpt', cmd === 'crazy');
     }
+  }
+
+  const addSingleAdapterFile = (baseRel, fileName, targetName, skillRelRoot = '.') => {
+    const baseDir = assertSafeSubpath(resolvedTargetRoot, baseRel);
+    const destPath = assertSafeSubpath(baseDir, fileName);
+    plannedFiles.push({
+      destPath,
+      relToBase: path.relative(resolvedTargetRoot, destPath),
+      baseDir,
+      content: Buffer.from(generateCompactTargetRouter(targetName, skillRelRoot), 'utf8'),
+      target: targetName,
+    });
+  };
+
+  if (targets.includes('cursor')) {
+    addSingleAdapterFile(path.join('.cursor', 'rules'), 'all-for-one.mdc', 'cursor');
+  }
+
+  if (targets.includes('windsurf')) {
+    const wsRuleRel = global ? path.join('.codeium', 'windsurf', 'memories') : path.join('.windsurf', 'rules');
+    addSingleAdapterFile(wsRuleRel, 'all-for-one.md', 'windsurf');
+    const wsWfBase = global
+      ? assertSafeSubpath(resolvedTargetRoot, path.join('.codeium', 'windsurf', 'global_workflows'))
+      : assertSafeSubpath(resolvedTargetRoot, path.join('.windsurf', 'workflows'));
+    const wfDest = assertSafeSubpath(wsWfBase, 'crazy.md');
+    plannedFiles.push({
+      destPath: wfDest,
+      relToBase: path.relative(resolvedTargetRoot, wfDest),
+      baseDir: wsWfBase,
+      content: Buffer.from(generateCompactTargetRouter('windsurf'), 'utf8'),
+      target: 'windsurf',
+    });
+  }
+
+  if (targets.includes('cline')) {
+    addSingleAdapterFile('.clinerules', 'all-for-one.md', 'cline');
+  }
+
+  if (targets.includes('copilot')) {
+    const copilotRel = global ? '.copilot' : '.github';
+    addSingleAdapterFile(copilotRel, 'copilot-instructions.md', 'copilot');
+  }
+
+  if (targets.includes('gemini-cli')) {
+    addSingleAdapterFile('.gemini', 'GEMINI.md', 'gemini-cli', '.gemini/skills/crazy');
+    const gemSkillBase = assertSafeSubpath(resolvedTargetRoot, path.join('.gemini', 'skills'));
+    addSkillTree(gemSkillBase, 'crazy', 'gemini-cli', false);
+  }
+
+  if (targets.includes('opencode')) {
+    const openCodeDocBase = global
+      ? assertSafeSubpath(resolvedTargetRoot, path.join('.config', 'opencode'))
+      : resolvedTargetRoot;
+    const agentsDest = assertSafeSubpath(openCodeDocBase, 'AGENTS.md');
+    plannedFiles.push({
+      destPath: agentsDest,
+      relToBase: path.relative(resolvedTargetRoot, agentsDest),
+      baseDir: openCodeDocBase,
+      content: Buffer.from(generateCompactTargetRouter('opencode', '.opencode/skills/crazy'), 'utf8'),
+      target: 'opencode',
+    });
+    const openSkillBase = global
+      ? assertSafeSubpath(resolvedTargetRoot, path.join('.config', 'opencode', 'skills'))
+      : assertSafeSubpath(resolvedTargetRoot, path.join('.opencode', 'skills'));
+    addSkillTree(openSkillBase, 'crazy', 'opencode', false);
   }
 
   return {

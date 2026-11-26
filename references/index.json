@@ -382,6 +382,20 @@
       "tags": ["antigravity", "mcp", "bridge", "colab", "t4", "drive", "jobs", "glb", "validation", "checkpoint"],
       "dependencies": ["cloud-colab-rendering", "model-capability-registry"],
       "estimatedTokens": 650
+    },
+    {
+      "id": "token-budget-architecture",
+      "path": "references/token-budget-architecture.md",
+      "title": "Cross-Target Token Budget Architecture (>= 85% Usage Reduction)",
+      "version": "3.2.0",
+      "sourceType": "architecture-spec",
+      "verifiedForVersion": "All-For-One 3.2.0",
+      "lastVerifiedDate": "2026-11-26",
+      "specialists": ["crazy", "crazycoder", "crazyqa"],
+      "engines": ["all"],
+      "tags": ["token-budget", "tokens", "85%", "economy", "antigravity", "claude", "chatgpt", "cursor", "windsurf", "cline", "copilot", "gemini-cli", "opencode", "compact"],
+      "dependencies": ["single-ai-architecture"],
+      "estimatedTokens": 620
     }
   ]
 }

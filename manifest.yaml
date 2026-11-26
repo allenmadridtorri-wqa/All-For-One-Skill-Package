@@ -53,14 +53,37 @@ targets:
   antigravity:
     workspaceSkillsDir: .agent/skills/all-for-one
     workspaceWorkflowsDir: .agent/workflows
+    workspaceRulesDir: .agent/rules
     globalSkillsDir: ~/.gemini/antigravity/skills/all-for-one
     globalWorkflowsDir: ~/.gemini/antigravity/global_workflows
+    globalRulesDir: ~/.gemini/antigravity/rules
     distDir: dist/antigravity
   chatgpt:
     workspaceSkillsDir: .agents/skills
     globalSkillsDir: ~/.codex/skills
     distDir: dist/chatgpt
     customGptBundle: dist/chatgpt/custom-gpt
+  cursor:
+    workspaceRulesDir: .cursor/rules
+    distDir: dist/targets/cursor
+  windsurf:
+    workspaceRulesDir: .windsurf/rules
+    workspaceWorkflowsDir: .windsurf/workflows
+    distDir: dist/targets/windsurf
+  cline:
+    workspaceRulesDir: .clinerules
+    distDir: dist/targets/cline
+  copilot:
+    workspaceInstructionsFile: .github/copilot-instructions.md
+    distDir: dist/targets/copilot
+  gemini-cli:
+    workspaceInstructionsFile: .gemini/GEMINI.md
+    workspaceSkillsDir: .gemini/skills
+    distDir: dist/targets/gemini-cli
+  opencode:
+    workspaceInstructionsFile: AGENTS.md
+    workspaceSkillsDir: .opencode/skills
+    distDir: dist/targets/opencode
 
 shared:
   coreDir: core

@@ -261,16 +261,25 @@ function buildColabNotebookJson(manifest: ColabJobManifest): string {
         metadata: {},
         outputs: [],
         source: [
-          '# Cell 2 — Install Required Runtime Only (Blender 4.2 LTS for render jobs OR open-weight T4 inference deps)\n',
+          '# Cell 2 — Install Required Runtime Only (Blender 4.2 LTS for render jobs OR model-specific T4 inference deps)\n',
           `JOB_TYPE = ${JSON.stringify(manifest.jobType ?? 'blender-render')}\n`,
+          `MODEL_ID = ${JSON.stringify(manifest.modelId ?? 'triposr')}\n`,
           'import shutil\n',
           'if JOB_TYPE == "blender-render" and not shutil.which("blender"):\n',
           '    !wget -q https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz -O /tmp/blender.tar.xz\n',
           '    !tar -xf /tmp/blender.tar.xz -C /opt && ln -sf /opt/blender-4.2.3-linux-x64/blender /usr/local/bin/blender\n',
           '    !blender --version\n',
           'elif JOB_TYPE == "t4-model-inference":\n',
-          `    print("[AFO-Colab] Preparing T4 inference dependencies for model: ${manifest.modelId ?? 'triposr'}")\n`,
-          '    !pip install -q --upgrade trimesh pillow einops huggingface_hub\n',
+          '    print(f"[AFO-Colab] Preparing T4 inference dependencies for model: {MODEL_ID}")\n',
+          '    !pip install -q --upgrade trimesh pillow einops huggingface_hub omegaconf\n',
+          '    if MODEL_ID == "sdxl-base-1.0":\n',
+          '        !pip install -q --upgrade diffusers transformers accelerate safetensors\n',
+          '    elif MODEL_ID == "depth-anything-v2-small":\n',
+          '        !pip install -q --upgrade transformers accelerate\n',
+          '    elif MODEL_ID == "real-esrgan":\n',
+          '        !pip install -q --upgrade basicsr facexlib gfpgan realesrgan\n',
+          '    elif MODEL_ID in ("triposr", "stable-fast-3d"):\n',
+          '        !pip install -q --upgrade rembg onnxruntime torchmcubes\n',
         ],
       },
       {
@@ -428,6 +437,10 @@ export function prepareColabT4InferenceJob(
     inputAssetRelPaths?: string[];
     qualityProfile?: T4QualityProfileId;
     workerScriptTemplatePath?: string;
+    prompt?: string;
+    seed?: number;
+    chunkSize?: number;
+    tileSize?: number;
   },
 ): ColabPackageOutput {
   const compute = detectComputeProfile('colab-t4-target');
@@ -499,11 +512,41 @@ export function prepareColabT4InferenceJob(
     createdAt: new Date().toISOString(),
   };
 
+  const outputFormat: 'PNG' | 'GLB' =
+    input.modelId === 'sdxl-base-1.0' ||
+    input.modelId === 'real-esrgan' ||
+    input.modelId === 'depth-anything-v2-small'
+      ? 'PNG'
+      : 'GLB';
+  manifest.outputFormat = outputFormat;
+
   const manifestPath = assertSafeSubpathSync(pkgAbs, 'job_manifest.json');
   atomicWriteFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   atomicWriteFileSync(
     assertSafeSubpathSync(pkgAbs, 'colab_job_manifest.json'),
     JSON.stringify(manifest, null, 2) + '\n',
+  );
+
+  const inferenceConfigPath = assertSafeSubpathSync(pkgAbs, path.join('config', 'inference_config.json'));
+  atomicWriteFileSync(
+    inferenceConfigPath,
+    JSON.stringify(
+      {
+        modelId: input.modelId,
+        fp16: true,
+        outputFormat,
+        chunkSize: input.chunkSize ?? 4096,
+        tileSize: input.tileSize ?? 512,
+        sdxlWidth: Math.min(1024, profileSpec.resolutionX),
+        sdxlHeight: Math.min(1024, profileSpec.resolutionY),
+        seed: input.seed ?? 42,
+        prompt:
+          input.prompt ??
+          'Photorealistic studio render reference, physically plausible lighting, neutral background, sharp focus',
+      },
+      null,
+      2,
+    ) + '\n',
   );
 
   const checkpointsPath = assertSafeSubpathSync(pkgAbs, 'checkpoints.json');

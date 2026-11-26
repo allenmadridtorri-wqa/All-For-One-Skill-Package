@@ -13,6 +13,7 @@ export interface ExecutionCostEstimate {
   estimatedAiRequests: number;
   deterministicTasksOffloaded: number;
   costMultiplierLabel: string;
+  targetTokenSavingsMinimumPercent: number;
   requiresExplicitUserApproval: boolean;
   warning: string | null;
 }
@@ -28,7 +29,8 @@ export function estimateExecutionModeUsage(
       agentCount: 1,
       estimatedAiRequests: Math.max(1, plannedTasks - deterministicTasks),
       deterministicTasksOffloaded: deterministicTasks,
-      costMultiplierLabel: '1.0x (Default Single-AI Economy)',
+      costMultiplierLabel: '1.0x (Default Single-AI Economy; >= 85% token-budgeted)',
+      targetTokenSavingsMinimumPercent: 85,
       requiresExplicitUserApproval: false,
       warning: null,
     };
@@ -39,7 +41,8 @@ export function estimateExecutionModeUsage(
       agentCount: 1,
       estimatedAiRequests: Math.max(2, plannedTasks),
       deterministicTasksOffloaded: deterministicTasks,
-      costMultiplierLabel: '1.0x–1.5x (Single-AI Internal Lenses; delegation requires approval)',
+      costMultiplierLabel: '1.0x–1.5x (Single-AI Internal Lenses; >= 85% token-budgeted)',
+      targetTokenSavingsMinimumPercent: 85,
       requiresExplicitUserApproval: false,
       warning: 'External multi-agent delegation remains disabled unless explicitly approved.',
     };
@@ -50,6 +53,7 @@ export function estimateExecutionModeUsage(
     estimatedAiRequests: plannedTasks * 4,
     deterministicTasksOffloaded: deterministicTasks,
     costMultiplierLabel: '3.0x–5.0x (Parallel Multi-Agent Acceleration)',
+    targetTokenSavingsMinimumPercent: 0,
     requiresExplicitUserApproval: true,
     warning:
       'ACCELERATION mode activates independent specialist agents in parallel and significantly increases AI quota/API usage.',

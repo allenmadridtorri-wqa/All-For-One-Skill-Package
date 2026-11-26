@@ -17,10 +17,12 @@ import {
 } from '../core/cloud-rendering.ts';
 import { type EngineId } from '../core/engine-profiles.ts';
 import { runEvaluationSuiteV2, runEvaluationSuiteV3 } from '../core/evaluator.ts';
+import type { SupportedTarget } from '../core/installer-engine.d.ts';
 import {
   collectSkillSupportFiles,
   detectExternalTools,
   generateAntigravityWorkflow,
+  generateCompactTargetRouter,
   safeInstall,
   safeUninstall,
   verifyInstallIntegrity,
@@ -30,6 +32,7 @@ import {
   retrieveTaskKnowledge,
   type CoreSpecialistId,
 } from '../core/knowledge-retrieval.ts';
+import { inspectGradioSpaceSchema } from '../core/hosted-providers.ts';
 import { MCP_BRIDGE_TOOLS } from '../core/mcp-bridge.ts';
 import {
   assessModelCompatibility,
@@ -49,9 +52,16 @@ import {
   type VerificationCheckRecord,
 } from '../core/qa-verification.ts';
 import { estimateExecutionModeUsage, type ExecutionMode } from '../core/single-ai.ts';
+import {
+  ALL_BUDGET_TARGETS,
+  auditAllTargetsTokenBudget,
+  buildCompactTargetRouterMarkdown,
+  measureTargetTokenBudget,
+  type BudgetTargetId,
+} from '../core/token-budget.ts';
 import { parseFrontmatter, validateSkillPackage } from './validate-skill-package.ts';
 
-export type FrontierTarget = 'claude' | 'antigravity' | 'chatgpt';
+export type FrontierTarget = SupportedTarget;
 
 export interface TriggerCase {
   id: string;
@@ -231,28 +241,9 @@ function copySkillReferencedFilesInto(
   }
 }
 
-function buildCustomGptInstructions(rootDir: string): string {
-  const sections: string[] = [
-    '# All-For-One V3.1 — Single-AI-First Engineering & Creative Production Framework (Custom GPT)',
-    '',
-    'You operate Single-AI-First (`ECONOMY` default) across four specialist disciplines: CRAZYMAKER (Game Director), CRAZYDESIGNER (Visual, Blender, Cinematics & Cloud GPU Director), CRAZYCODER (Engineering Director), and CRAZYQA (Independent QA & Security Director), orchestrated by `/crazy`.',
-    '',
-    '## Slash Command Routing',
-    '- `/crazymaker` — Gameplay specifications, genre profiles, economies, quests, AI, balancing criteria, screenplay beats.',
-    '- `/crazydesigner` — Engine-specific rendering, PBR, lighting, VFX, Blender automation, Toggle Studio motion choreography, long-form shot chunking, Google Colab GPU offloading, spatial audio.',
-    '- `/crazycoder` — Structure & feasibility analysis, API compatibility, zero-GC engine systems, provider-flexible model caching, security.',
-    '- `/crazyqa` — Independent static, test, build, runtime, PNG signature, FFmpeg, and screenshot verification (`VERIFIED` / `PARTIALLY_VERIFIED` / `UNVERIFIED` / `FAILED`).',
-    '- `/crazy` — Sequential Single-AI-First orchestration pipeline (`ECONOMY` default, `BALANCED` internal lenses, `ACCELERATION` opt-in only).',
-    '',
-  ];
-
-  for (const cmd of COMMANDS) {
-    const raw = fs.readFileSync(path.join(rootDir, 'skills', cmd, 'SKILL.md'), 'utf8');
-    const { body } = parseFrontmatter(raw);
-    sections.push('---', '', body.trim(), '');
-  }
-
-  return sections.join('\n');
+function buildCustomGptInstructions(_rootDir: string): string {
+  // Token-budgeted router (< 600 tokens, <= 4,000 chars) replacing legacy full-skill dump (>= 85% reduction)
+  return buildCompactTargetRouterMarkdown('custom-gpt');
 }
 
 export function buildAllTargets(rootDir: string): { artifacts: string[] } {
@@ -290,6 +281,11 @@ export function buildAllTargets(rootDir: string): { artifacts: string[] } {
   const agSkillDir = path.join(agDist, 'skills', 'all-for-one');
   copyDirRecursive(path.join(rootDir, 'skills', 'crazy'), agSkillDir);
   copySharedVaultInto(agSkillDir, rootDir);
+  const agRulesDir = path.join(agDist, 'rules');
+  fs.mkdirSync(agRulesDir, { recursive: true });
+  const agRulePath = path.join(agRulesDir, 'all-for-one.md');
+  fs.writeFileSync(agRulePath, generateCompactTargetRouter('antigravity', '../skills/all-for-one'));
+  artifacts.push(path.relative(rootDir, agRulePath));
   for (const cmd of COMMANDS) {
     const srcSkill = fs.readFileSync(path.join(rootDir, 'skills', cmd, 'SKILL.md'), 'utf8');
     const wfDir = path.join(agDist, 'workflows');
@@ -326,6 +322,24 @@ export function buildAllTargets(rootDir: string): { artifacts: string[] } {
   const knowledgeZip = path.join(customGptDir, 'all-for-one-knowledge.zip');
   fs.writeFileSync(knowledgeZip, createZipBuffer(knowledgeEntries));
   artifacts.push(path.relative(rootDir, knowledgeZip));
+
+  // 4. Compact Token-Budgeted Extended IDE/CLI Adapters (Cursor, Windsurf, Cline, Copilot, Gemini CLI, OpenCode)
+  const targetsDist = path.join(distDir, 'targets');
+  ensureCleanBuildDir(targetsDist);
+  const extendedAdapterFiles: Array<{ target: BudgetTargetId; rel: string }> = [
+    { target: 'cursor', rel: 'cursor/.cursor/rules/all-for-one.mdc' },
+    { target: 'windsurf', rel: 'windsurf/.windsurf/rules/all-for-one.md' },
+    { target: 'cline', rel: 'cline/.clinerules/all-for-one.md' },
+    { target: 'copilot', rel: 'copilot/.github/copilot-instructions.md' },
+    { target: 'gemini-cli', rel: 'gemini-cli/.gemini/GEMINI.md' },
+    { target: 'opencode', rel: 'opencode/AGENTS.md' },
+  ];
+  for (const item of extendedAdapterFiles) {
+    const outPath = path.join(targetsDist, item.rel);
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, buildCompactTargetRouterMarkdown(item.target));
+    artifacts.push(path.relative(rootDir, outPath));
+  }
 
   return { artifacts };
 }
@@ -426,7 +440,7 @@ export function scoreTriggerRouting(rootDir: string): TriggerEvalResult {
 // CLI Entrypoint
 // ---------------------------------------------------------------------------
 
-function main(): void {
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const subcommand = args[0] ?? 'help';
   const rootDir = process.cwd();
@@ -610,6 +624,40 @@ function main(): void {
     return;
   }
 
+  if (subcommand === 'token-budget') {
+    const targetFlag = getFlag('--target=') ?? 'all';
+    const query = getFlag('--query=') ?? 'photorealistic vehicle lighting pbr';
+    if (targetFlag !== 'all') {
+      if (!(ALL_BUDGET_TARGETS as readonly string[]).includes(targetFlag)) {
+        console.error(`Unknown budget target "${targetFlag}". Allowed: all, ${ALL_BUDGET_TARGETS.join(', ')}`);
+        process.exit(1);
+      }
+      const single = measureTargetTokenBudget(rootDir, targetFlag as BudgetTargetId, query);
+      console.log(JSON.stringify(single, null, 2));
+      if (!single.meets85PercentTargetReduction || !single.withinHardCaps) process.exit(1);
+      return;
+    }
+    const report = auditAllTargetsTokenBudget(rootDir, query);
+    console.log(JSON.stringify(report, null, 2));
+    if (!report.allTargetsMeet85PercentReduction) process.exit(1);
+    return;
+  }
+
+  if (subcommand === 'inspect-space') {
+    const space = getFlag('--space=');
+    if (!space) {
+      console.error('Missing --space=<owner/space-or-https-url>');
+      process.exit(1);
+    }
+    const modelId = getFlag('--model=');
+    const inspected = await inspectGradioSpaceSchema(space, {
+      modelId,
+      hfToken: process.env.HF_TOKEN,
+    });
+    console.log(JSON.stringify(inspected, null, 2));
+    return;
+  }
+
   if (subcommand === 'cinematic-plan') {
     const duration = Number(getFlag('--duration=') ?? '90');
     const fps = Number(getFlag('--fps=') ?? '24');
@@ -737,18 +785,21 @@ function main(): void {
     const query = getFlag('--query=') ?? '';
     const specialist = getFlag('--specialist=') as CoreSpecialistId | undefined;
     const engine = getFlag('--engine=') as EngineId | undefined;
-    const budget = Number(getFlag('--budget=') ?? '4000');
+    const budget = Number(getFlag('--budget=') ?? '1800');
+    const compact = args.includes('--compact');
     const res = retrieveTaskKnowledge(rootDir, {
       query,
       specialist,
       engine,
       maxTokenBudget: budget,
+      compactSections: compact,
+      maxSectionTokens: compact ? Math.floor(budget * 0.85) : undefined,
     });
     console.log(
-      `Retrieved ${res.selected.length} doc(s), ${res.totalTokensLoaded}/${res.totalCatalogTokens} tokens (${res.tokenSavingsPercent}% saved, cacheHit=${res.cacheHit}):`,
+      `Retrieved ${res.selected.length} doc(s), ${res.totalTokensLoaded}/${res.totalCatalogTokens} tokens (${res.tokenSavingsPercent}% saved, compact=${compact}, cacheHit=${res.cacheHit}):`,
     );
     for (const item of res.selected) {
-      console.log(`  - ${item.entry.path} [${item.provenanceStatus}] (score=${item.relevanceScore}, ~${item.entry.estimatedTokens} tokens)`);
+      console.log(`  - ${item.entry.path} [${item.provenanceStatus}] (score=${item.relevanceScore}, ~${item.effectiveTokens ?? item.entry.estimatedTokens} tokens)`);
     }
     return;
   }
@@ -756,11 +807,13 @@ function main(): void {
   if (subcommand === 'qa-report') {
     const valReport = validateSkillPackage(rootDir);
     const evalV3 = runEvaluationSuiteV3(rootDir, true);
+    const budgetAudit = auditAllTargetsTokenBudget(rootDir);
     const secFiles = fs
       .readdirSync(path.join(rootDir, 'core'))
       .map((f) => path.join('core', f));
     const secScan = runSecuritySecretScan(rootDir, secFiles);
     const blenderCheck = evaluateBlenderQaCheck();
+    const minSavings = Math.min(...budgetAudit.targets.map((t) => t.activeTaskSavingsPercentVsFull));
     const checks: VerificationCheckRecord[] = [
       {
         id: 'QA-PKG-VAL',
@@ -770,6 +823,15 @@ function main(): void {
         commandOrSource: 'npx tsx scripts/afo.ts validate',
         exitCode: valReport.ok ? 0 : 1,
         evidence: `${valReport.skillsChecked} skills checked; ${valReport.issues.length} issues.`,
+      },
+      {
+        id: 'QA-TOKEN-BUDGET-85',
+        category: 'memory-profile',
+        description: 'Verify >= 85% token reduction across all 10 AI targets (Antigravity, Claude, Codex, Custom GPT, Cursor, Windsurf, Cline, Copilot, Gemini CLI, OpenCode)',
+        status: budgetAudit.allTargetsMeet85PercentReduction ? 'VERIFIED' : 'FAILED',
+        commandOrSource: 'npx tsx scripts/afo.ts token-budget',
+        exitCode: budgetAudit.allTargetsMeet85PercentReduction ? 0 : 1,
+        evidence: `${budgetAudit.targets.length} targets measured against ${budgetAudit.baseline.totalFullPackageTokens} baseline tokens; minimum savings=${minSavings}%.`,
       },
       {
         id: 'QA-KEYWORD-ROUTING',
@@ -797,24 +859,29 @@ function main(): void {
 Usage:
   npx tsx scripts/afo.ts validate
   npx tsx scripts/afo.ts build
-  npx tsx scripts/afo.ts sync [--target=claude|antigravity|chatgpt|all] [--global] [--dry-run] [--force --yes]
+  npx tsx scripts/afo.ts sync [--target=<target>|all] [--global] [--dry-run] [--force --yes]
   npx tsx scripts/afo.ts uninstall [--global] [--dry-run] [--force --yes]
   npx tsx scripts/afo.ts verify-install [--global]
   npx tsx scripts/afo.ts check-tools
   npx tsx scripts/afo.ts single-ai-check [--mode=ECONOMY|BALANCED|ACCELERATION]
+  npx tsx scripts/afo.ts token-budget [--target=all|<target>] [--query="..."]
   npx tsx scripts/afo.ts colab-check [--frames=240] [--engine=CYCLES|BLENDER_EEVEE_NEXT]
   npx tsx scripts/afo.ts models [--category=3d-generation|image-generation|asset-enhancement|animation-video] [--t4-only] [--commercial-only]
+  npx tsx scripts/afo.ts inspect-space --space=<owner/name> [--model=triposr]
   npx tsx scripts/afo.ts route --domain=product-vehicle|architecture-interior|natural-landscape|character-creature|playable-3d-scene [--engine=...]
   npx tsx scripts/afo.ts validate-asset --file=<relative-path> [--criteria="lighting,silhouette"]
   npx tsx scripts/afo.ts prepare-colab-t4 --job=<id> [--type=render|inference] [--model=triposr] [--profile=LOOK_DEVELOPMENT]
   npx tsx scripts/afo.ts mcp-tools
   npx tsx scripts/afo.ts cinematic-plan [--duration=90] [--fps=24]
   npx tsx scripts/afo.ts eval
-  npx tsx scripts/afo.ts retrieve --query="..." [--specialist=...] [--engine=...] [--budget=4000]
+  npx tsx scripts/afo.ts retrieve --query="..." [--specialist=...] [--engine=...] [--budget=1800] [--compact]
   npx tsx scripts/afo.ts qa-report
 `);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  main();
+  main().catch((err) => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });
 }

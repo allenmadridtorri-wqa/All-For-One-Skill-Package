@@ -2,7 +2,7 @@
 import readline from 'node:readline';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { executeMcpTool, MCP_BRIDGE_TOOLS } from '../core/mcp-bridge.ts';
+import { executeMcpTool, executeMcpToolAsync, MCP_BRIDGE_TOOLS } from '../core/mcp-bridge.ts';
 
 export interface JsonRpcRequest {
   jsonrpc?: string;
@@ -80,16 +80,46 @@ export function handleMcpJsonRpcMessage(
   };
 }
 
+export async function handleMcpJsonRpcMessageAsync(
+  req: JsonRpcRequest,
+  workspaceDir: string = process.cwd(),
+): Promise<JsonRpcResponse> {
+  if (req.method === 'tools/call') {
+    const id = req.id ?? null;
+    const params = req.params ?? {};
+    const name = String(params.name ?? '');
+    const args =
+      params.arguments && typeof params.arguments === 'object'
+        ? (params.arguments as Record<string, unknown>)
+        : {};
+    const res = await executeMcpToolAsync(name, args, workspaceDir);
+    return {
+      jsonrpc: '2.0',
+      id,
+      result: {
+        isError: !res.ok,
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(res.ok ? res.data : { error: res.error, data: res.data }, null, 2),
+          },
+        ],
+      },
+    };
+  }
+  return handleMcpJsonRpcMessage(req, workspaceDir);
+}
+
 function startStdioMcpServer(): void {
   const workspaceDir = process.cwd();
   const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
-  rl.on('line', (line) => {
+  rl.on('line', async (line) => {
     const trimmed = line.trim();
     if (!trimmed) return;
     try {
       const req = JSON.parse(trimmed) as JsonRpcRequest;
       if (req.method === 'notifications/initialized') return;
-      const resp = handleMcpJsonRpcMessage(req, workspaceDir);
+      const resp = await handleMcpJsonRpcMessageAsync(req, workspaceDir);
       process.stdout.write(JSON.stringify(resp) + '\n');
     } catch (err) {
       const errResp: JsonRpcResponse = {

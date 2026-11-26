@@ -13,7 +13,22 @@ import {
   T4_QUALITY_PROFILES,
   validateColabJobManifest,
 } from '../core/cloud-rendering.ts';
-import { executeMcpTool, MCP_BRIDGE_TOOLS } from '../core/mcp-bridge.ts';
+import {
+  executeMcpTool,
+  executeMcpToolAsync,
+  MCP_BRIDGE_TOOLS,
+} from '../core/mcp-bridge.ts';
+import {
+  inspectGradioSpaceSchema,
+  resolveSafeHfSpaceTarget,
+} from '../core/hosted-providers.ts';
+import {
+  EXTENDED_TARGETS,
+  safeInstall,
+  SUPPORTED_TARGETS,
+  verifyInstallIntegrity,
+} from '../core/installer-engine.mjs';
+import { retrieveTaskKnowledge } from '../core/knowledge-retrieval.ts';
 import {
   assessModelCompatibility,
   detectComputeProfile,
@@ -23,7 +38,12 @@ import {
 } from '../core/model-registry.ts';
 import { routeProductionTask } from '../core/model-routing.ts';
 import { evaluateAssetValidationQa } from '../core/qa-verification.ts';
-import { handleMcpJsonRpcMessage } from './mcp-bridge.ts';
+import {
+  ALL_BUDGET_TARGETS,
+  auditAllTargetsTokenBudget,
+  buildCompactTargetRouterMarkdown,
+} from '../core/token-budget.ts';
+import { handleMcpJsonRpcMessage, handleMcpJsonRpcMessageAsync } from './mcp-bridge.ts';
 
 const ROOT_DIR = process.cwd();
 
@@ -114,7 +134,7 @@ test('Model router enforces zero paid APIs, stage separation, and Colab fallback
   assert.equal(plan.artifactDistinctionPolicy.length, 5);
 });
 
-test('Colab T4 Drive job packaging enforces MyDrive/ALL_FOR_ONE/jobs layout, T4 profiles, and blocks TRELLIS.2', () => {
+test('Colab T4 Drive job packaging emits inference_config.json, validates GLB/PNG verification & T4 execution plan in Python worker', () => {
   const tmpDir = makeTempDir('afo-v32-colab-');
   try {
     assert.equal(T4_QUALITY_PROFILES.PREVIEW.resolutionX, 960);
@@ -143,6 +163,11 @@ test('Colab T4 Drive job packaging enforces MyDrive/ALL_FOR_ONE/jobs layout, T4 
     assert.ok(fs.existsSync(pkg.checkpointsPath));
     assert.ok(fs.existsSync(path.join(pkg.packageDir, 'input')));
     assert.ok(fs.existsSync(path.join(pkg.packageDir, 'output')));
+    const inferCfgPath = path.join(pkg.packageDir, 'config', 'inference_config.json');
+    assert.ok(fs.existsSync(inferCfgPath));
+    const inferCfg = JSON.parse(fs.readFileSync(inferCfgPath, 'utf8')) as { modelId: string; outputFormat: string };
+    assert.equal(inferCfg.modelId, 'triposr');
+    assert.equal(inferCfg.outputFormat, 'GLB');
 
     const val = validateColabJobManifest(tmpDir, 'jobs/hero_prop_01/job_manifest.json');
     assert.equal(val.valid, true, val.errors.join(' '));
@@ -154,6 +179,42 @@ test('Colab T4 Drive job packaging enforces MyDrive/ALL_FOR_ONE/jobs layout, T4 
       { cwd: tmpDir, encoding: 'utf8' },
     );
     assert.match(dryOut, /\[DRY-RUN\] T4 inference planned for triposr/);
+
+    // Verify Python worker per-model T4 execution plans & GLB/PNG artifact verification helpers
+    const validGlbPath = path.join(pkg.packageDir, 'output', 'sample.glb');
+    const validPngPath = path.join(pkg.packageDir, 'output', 'sample.png');
+    const corruptGlbPath = path.join(pkg.packageDir, 'output', 'corrupt.glb');
+    fs.writeFileSync(
+      validGlbPath,
+      makeGlbBuffer({
+        asset: { version: '2.0' },
+        meshes: [{ name: 'Mesh', primitives: [{ attributes: { POSITION: 0 } }] }],
+      }),
+    );
+    fs.writeFileSync(validPngPath, makePngBuffer(640, 480));
+    fs.writeFileSync(corruptGlbPath, Buffer.from('NOT_A_GLB_FILE', 'utf8'));
+
+    const pyCheck = execFileSync(
+      'python3',
+      [
+        '-c',
+        [
+          'import importlib.util, json, sys',
+          `spec = importlib.util.spec_from_file_location('worker', ${JSON.stringify(pkg.workerScriptPath)})`,
+          'mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)',
+          'assert set(["triposr", "stable-fast-3d", "sdxl-base-1.0", "real-esrgan", "depth-anything-v2-small"]).issubset(mod.SUPPORTED_T4_INFERENCE_MODELS)',
+          'plan = mod.build_t4_model_execution_plan("triposr", "/tmp/job", "/tmp/out", {"chunkSize": 8192}, ["/tmp/a.png"])',
+          'assert plan["strategy"] == "official-repo-cli" and "--chunk-size" in plan["primary_cmd"]',
+          `ok_glb = mod.verify_output_artifact(${JSON.stringify(validGlbPath)})`,
+          `ok_png = mod.verify_output_artifact(${JSON.stringify(validPngPath)})`,
+          `bad_glb = mod.verify_output_artifact(${JSON.stringify(corruptGlbPath)})`,
+          'assert ok_glb["valid"] and ok_png["valid"] and (not bad_glb["valid"])',
+          'print(json.dumps({"ok": True}))',
+        ].join('\n'),
+      ],
+      { cwd: tmpDir, encoding: 'utf8' },
+    );
+    assert.match(pyCheck, /"ok": true/);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -216,14 +277,14 @@ test('Asset validator inspects GLB attributes/PBR materials/scale and rejects co
   }
 });
 
-test('Local Antigravity MCP bridge exposes all 10 tools and runs JSON-RPC lifecycle cleanly', () => {
+test('Local Antigravity MCP bridge exposes all 12 tools and runs sync/async JSON-RPC lifecycle cleanly', async () => {
   const tmpDir = makeTempDir('afo-v32-mcp-');
   try {
     fs.cpSync(path.join(ROOT_DIR, 'assets'), path.join(tmpDir, 'assets'), { recursive: true });
 
     const listResp = handleMcpJsonRpcMessage({ id: 1, method: 'tools/list' }, tmpDir);
     const listedTools = (listResp.result as { tools: Array<{ name: string }> }).tools.map((t) => t.name);
-    assert.equal(MCP_BRIDGE_TOOLS.length, 10);
+    assert.equal(MCP_BRIDGE_TOOLS.length, 12);
     for (const expectedName of [
       'get_compute_profile',
       'list_compatible_models',
@@ -235,6 +296,8 @@ test('Local Antigravity MCP bridge exposes all 10 tools and runs JSON-RPC lifecy
       'import_colab_results',
       'validate_generated_asset',
       'inspect_render_artifacts',
+      'get_token_budget_report',
+      'inspect_hosted_space',
     ]) {
       assert.ok(listedTools.includes(expectedName), `Missing MCP tool ${expectedName}`);
     }
@@ -264,7 +327,163 @@ test('Local Antigravity MCP bridge exposes all 10 tools and runs JSON-RPC lifecy
 
     const outputsCall = executeMcpTool('inspect_job_outputs', { jobId: 'mcp_job_01' }, tmpDir);
     assert.equal((outputsCall.data as { outputCount: number }).outputCount, 0);
+
+    const budgetCall = executeMcpTool('get_token_budget_report', {}, ROOT_DIR);
+    assert.equal(budgetCall.ok, true);
+    assert.equal(
+      (budgetCall.data as { allTargetsMeet85PercentReduction: boolean }).allTargetsMeet85PercentReduction,
+      true,
+    );
+
+    const asyncRejectCall = await handleMcpJsonRpcMessageAsync(
+      {
+        id: 3,
+        method: 'tools/call',
+        params: {
+          name: 'inspect_hosted_space',
+          arguments: { spaceOrUrl: 'http://127.0.0.1:8080/internal' },
+        },
+      },
+      ROOT_DIR,
+    );
+    assert.equal((asyncRejectCall.result as { isError: boolean }).isError, true);
+
+    const directAsync = await executeMcpToolAsync('get_compute_profile', {}, ROOT_DIR);
+    assert.equal(directAsync.ok, true);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('Token budget auditor enforces >= 85% token savings across ALL 10 targets and keeps Custom GPT <= 4,000 chars', () => {
+  assert.equal(ALL_BUDGET_TARGETS.length, 10);
+  const report = auditAllTargetsTokenBudget(ROOT_DIR);
+  assert.equal(report.minimumRequiredReductionPercent, 85);
+  assert.equal(report.allTargetsMeet85PercentReduction, true);
+
+  for (const t of report.targets) {
+    assert.equal(t.meets85PercentTargetReduction, true, `Target ${t.target} missed 85% savings`);
+    assert.equal(t.withinHardCaps, true, `Target ${t.target} exceeded hard cap`);
+    assert.ok(t.startupSavingsPercentVsFull >= 85);
+    assert.ok(t.startupSavingsPercentVsAllSkills >= 85);
+    assert.ok(t.activeTaskSavingsPercentVsFull >= 85);
+  }
+
+  const customGptRouter = buildCompactTargetRouterMarkdown('custom-gpt');
+  assert.ok(customGptRouter.length <= 4000, `Expected custom-gpt <= 4000 chars, got ${customGptRouter.length}`);
+
+  const cliOut = execFileSync('npx', ['tsx', 'scripts/afo.ts', 'token-budget'], {
+    cwd: ROOT_DIR,
+    encoding: 'utf8',
+  });
+  const parsedCli = JSON.parse(cliOut) as { allTargetsMeet85PercentReduction: boolean; targets: unknown[] };
+  assert.equal(parsedCli.allTargetsMeet85PercentReduction, true);
+  assert.equal(parsedCli.targets.length, 10);
+});
+
+test('Compact section-level knowledge retrieval saves significantly more tokens than full doc loading', () => {
+  const full = retrieveTaskKnowledge(ROOT_DIR, {
+    query: 'photorealistic vehicle lighting aces pbr',
+    maxTokenBudget: 4000,
+    maxDocs: 3,
+    compactSections: false,
+  });
+  const compact = retrieveTaskKnowledge(ROOT_DIR, {
+    query: 'photorealistic vehicle lighting aces pbr',
+    maxTokenBudget: 1800,
+    maxDocs: 3,
+    compactSections: true,
+    maxSectionTokens: 1500,
+  });
+
+  assert.ok(compact.selected.length >= 1);
+  assert.ok(compact.totalTokensLoaded <= 1800);
+  assert.ok(compact.totalTokensLoaded < full.totalTokensLoaded);
+  assert.ok(compact.selected.some((d) => typeof d.compactExcerpt === 'string' && d.compactExcerpt.length > 0));
+});
+
+test('Installer supports all 9 workspace targets (claude, antigravity, chatgpt, cursor, windsurf, cline, copilot, gemini-cli, opencode)', () => {
+  assert.equal(SUPPORTED_TARGETS.length, 9);
+  assert.equal(EXTENDED_TARGETS.length, 6);
+
+  const tmpDir = makeTempDir('afo-v32-targets-');
+  try {
+    const res = safeInstall({
+      sourceRoot: ROOT_DIR,
+      targetRoot: tmpDir,
+      target: 'all',
+      global: false,
+    });
+    assert.equal(res.ok, true);
+
+    const expectedFiles = [
+      '.agent/rules/all-for-one.md',
+      '.cursor/rules/all-for-one.mdc',
+      '.windsurf/rules/all-for-one.md',
+      '.windsurf/workflows/crazy.md',
+      '.clinerules/all-for-one.md',
+      '.github/copilot-instructions.md',
+      '.gemini/GEMINI.md',
+      '.gemini/skills/crazy/SKILL.md',
+      'AGENTS.md',
+      '.opencode/skills/crazy/SKILL.md',
+    ];
+    for (const rel of expectedFiles) {
+      assert.equal(fs.existsSync(path.join(tmpDir, rel)), true, `Expected ${rel} to be installed`);
+    }
+
+    const integrity = verifyInstallIntegrity({ targetRoot: tmpDir, global: false });
+    assert.equal(integrity.ok, true, integrity.message);
+
+    // Confirm --target=gemini-cli succeeds in dry-run via install.mjs
+    const cliDry = execFileSync(process.execPath, ['scripts/install.mjs', '--dry-run', '--target=gemini-cli'], {
+      cwd: ROOT_DIR,
+      encoding: 'utf8',
+    });
+    assert.match(cliDry, /\[DRY-RUN\] All For One V3\.2 .*targets=gemini-cli/);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('HF Gradio Space schema inspector blocks SSRF hosts, parses schemas, and falls back to Colab T4 on HTTP 429', async () => {
+  assert.throws(() => resolveSafeHfSpaceTarget('https://evil.example.com/gradio'), /allowed Hugging Face Space domain/);
+  assert.throws(() => resolveSafeHfSpaceTarget('http://stabilityai-triposr.hf.space'), /HTTPS/);
+
+  const valid = resolveSafeHfSpaceTarget('stabilityai/TripoSR');
+  assert.equal(valid.spaceId, 'stabilityai/TripoSR');
+  assert.equal(valid.baseUrl, 'https://stabilityai-triposr.hf.space');
+
+  const okRes = await inspectGradioSpaceSchema('stabilityai/TripoSR', {
+    fetchFn: (async (url: string | URL) => {
+      assert.match(String(url), /\/gradio_api\/info$/);
+      return new Response(
+        JSON.stringify({
+          named_endpoints: {
+            '/run': {
+              parameters: [{ label: 'Image', type: { type: 'filepath' } }],
+              returns: [{ label: 'Mesh', type: { type: 'filepath' } }],
+            },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }) as unknown as typeof fetch,
+  });
+  assert.equal(okRes.status, 'SCHEMA_INSPECTED');
+  assert.equal(okRes.fallbackRecommended, 'none');
+  assert.equal(okRes.endpoints.length, 1);
+  assert.equal(okRes.endpoints[0].apiName, '/run');
+
+  const rateLimited = await inspectGradioSpaceSchema('stabilityai/TripoSR', {
+    fetchFn: (async () =>
+      new Response('Too many requests', {
+        status: 429,
+        headers: { 'retry-after': '60' },
+      })) as unknown as typeof fetch,
+  });
+  assert.equal(rateLimited.status, 'RATE_LIMITED');
+  assert.equal(rateLimited.fallbackRecommended, 'colab-t4-drive-job');
+  assert.equal(rateLimited.httpStatus, 429);
+});
+

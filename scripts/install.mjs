@@ -8,9 +8,9 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   detectExternalTools,
-  FRONTIER_TARGETS,
   safeInstall,
   safeUninstall,
+  SUPPORTED_TARGETS,
   verifyInstallIntegrity,
 } from '../core/installer-engine.mjs';
 
@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SOURCE_ROOT = path.resolve(__dirname, '..');
 
-const VALID_TARGETS = new Set(['all', ...FRONTIER_TARGETS]);
+const VALID_TARGETS = new Set(['all', ...SUPPORTED_TARGETS]);
 const BOOLEAN_FLAGS = new Set([
   '--global',
   '--workspace',
@@ -50,7 +50,9 @@ export function parseCliArgs(argv) {
     }
 
     if (arg === '--target') {
-      throw new Error('Malformed option "--target". Expected --target=<all|claude|antigravity|chatgpt>.');
+      throw new Error(
+        `Malformed option "--target". Expected --target=<all|${SUPPORTED_TARGETS.join('|')}>.`,
+      );
     }
 
     if (arg.startsWith('--target=')) {
@@ -118,7 +120,7 @@ export function parseCliArgs(argv) {
 function main() {
   const opts = parseCliArgs(process.argv.slice(2));
   if (opts.help) {
-    console.log(`All For One V3.1 Safe Installer
+    console.log(`All For One V3.2 Safe Installer
 
 Usage:
   node scripts/install.mjs [options]
@@ -126,7 +128,7 @@ Usage:
 Options:
   --global               Install to user home directories (default)
   --workspace            Install into current working directory
-  --target=<name>        claude | antigravity | chatgpt | all (default: all)
+  --target=<name>        ${SUPPORTED_TARGETS.join(' | ')} | all (default: all)
   --dry-run              Preview planned changes without writing files
   --force                Overwrite or remove user-modified owned files (requires --yes; creates backup first)
   --yes                  Confirm destructive --force operations
@@ -189,7 +191,7 @@ Options:
   });
 
   console.log(
-    `${opts.dryRun ? '[DRY-RUN] ' : ''}All For One V3.1 (${res.scope}, targets=${res.targets.join(',')}): ` +
+    `${opts.dryRun ? '[DRY-RUN] ' : ''}All For One V3.2 (${res.scope}, targets=${res.targets.join(',')}): ` +
       `created=${res.summary.created}, updated=${res.summary.updated}, ` +
       `unchanged=${res.summary.unchanged}, skippedUserModified=${res.summary.skippedUserModified}`,
   );

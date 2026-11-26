@@ -33,6 +33,8 @@ export interface KnowledgeRetrievalQuery {
   maxTokenBudget?: number;
   maxDocs?: number;
   preferOfficialSources?: boolean;
+  compactSections?: boolean;
+  maxSectionTokens?: number;
 }
 
 export interface RetrievedKnowledgeDoc {
@@ -41,6 +43,8 @@ export interface RetrievedKnowledgeDoc {
   sourceType: KnowledgeSourceType;
   provenanceStatus: 'SOURCE_BACKED' | 'FRAMEWORK_REFERENCE';
   includedDependencyOf?: string;
+  compactExcerpt?: string;
+  effectiveTokens?: number;
 }
 
 export interface KnowledgeRetrievalResult {
@@ -167,11 +171,66 @@ export function detectOutdatedKnowledgeDocs(
   return findings;
 }
 
+function extractCompactMarkdownExcerpt(
+  absPath: string,
+  queryTokens: string[],
+  maxDocTokens: number,
+): { excerpt: string; tokens: number } | null {
+  if (!fs.existsSync(absPath)) return null;
+  const raw = fs.readFileSync(absPath, 'utf8');
+  const sections = raw.split(/\r?\n(?=##\s+)/);
+  const header = sections[0]?.trim() ?? '';
+  const bodySections = sections.slice(1);
+
+  const scoredSections = bodySections.map((sec, idx) => {
+    const lower = sec.toLowerCase();
+    let score = 0;
+    if (/^##\s+(?:purpose|production methodology|technical requirements|important constraints|validation procedure)/i.test(sec)) {
+      score += 2;
+    }
+    for (const tok of queryTokens) {
+      if (lower.includes(tok)) score += 3;
+    }
+    return { sec: sec.trim(), idx, score };
+  });
+
+  scoredSections.sort((a, b) => b.score - a.score || a.idx - b.idx);
+  const chosen: string[] = [];
+  let usedTokens = 0;
+
+  if (header) {
+    const headerLines = header.split(/\r?\n/).slice(0, 6).join('\n');
+    const hTok = estimateTokens(headerLines);
+    if (hTok <= maxDocTokens) {
+      chosen.push(headerLines);
+      usedTokens += hTok;
+    }
+  }
+
+  for (const item of scoredSections) {
+    const t = estimateTokens(item.sec);
+    if (usedTokens + t <= maxDocTokens) {
+      chosen.push(item.sec);
+      usedTokens += t;
+    } else if (chosen.length <= 1 && maxDocTokens > usedTokens + 40) {
+      const charBudget = Math.max(120, (maxDocTokens - usedTokens) * 4);
+      const truncated = item.sec.slice(0, charBudget).trimEnd() + '\n...';
+      chosen.push(truncated);
+      usedTokens += estimateTokens(truncated);
+      break;
+    }
+  }
+
+  const excerpt = chosen.join('\n\n').trim();
+  return { excerpt, tokens: Math.max(1, estimateTokens(excerpt)) };
+}
+
 export function retrieveTaskKnowledge(
   rootDir: string,
   params: KnowledgeRetrievalQuery,
 ): KnowledgeRetrievalResult {
   const absRoot = path.resolve(rootDir);
+  const compactSections = Boolean(params.compactSections);
   const cacheKey = JSON.stringify({
     absRoot,
     q: params.query,
@@ -180,6 +239,8 @@ export function retrieveTaskKnowledge(
     b: params.maxTokenBudget ?? 6500,
     m: params.maxDocs ?? 4,
     o: params.preferOfficialSources ?? true,
+    c: compactSections,
+    st: params.maxSectionTokens ?? 0,
   });
 
   const cached = queryCache.get(cacheKey);
@@ -249,13 +310,32 @@ export function retrieveTaskKnowledge(
       return;
     }
     if (selected.length >= maxDocs && !depOf) return;
-    if (usedTokens + entry.estimatedTokens > maxTokenBudget) {
+
+    let effectiveTokens = entry.estimatedTokens;
+    let compactExcerpt: string | undefined;
+    if (compactSections) {
+      const perDocCap = Math.max(
+        180,
+        Math.floor((params.maxSectionTokens ?? maxTokenBudget) / Math.max(1, maxDocs)),
+      );
+      const extracted = extractCompactMarkdownExcerpt(
+        path.join(absRoot, entry.path),
+        qTokens,
+        perDocCap,
+      );
+      if (extracted) {
+        compactExcerpt = extracted.excerpt;
+        effectiveTokens = Math.min(entry.estimatedTokens, extracted.tokens);
+      }
+    }
+
+    if (usedTokens + effectiveTokens > maxTokenBudget) {
       skippedForBudget.push(entry.id);
       return;
     }
     selectedIds.add(entry.id);
     seenTitles.add(normTitle);
-    usedTokens += entry.estimatedTokens;
+    usedTokens += effectiveTokens;
     const sourceType = inferSourceType(entry);
     selected.push({
       entry,
@@ -266,12 +346,31 @@ export function retrieveTaskKnowledge(
           ? 'SOURCE_BACKED'
           : 'FRAMEWORK_REFERENCE',
       includedDependencyOf: depOf,
+      compactExcerpt,
+      effectiveTokens,
     });
 
     for (const depId of entry.dependencies) {
       const depEntry = byId.get(depId);
       if (depEntry && !selectedIds.has(depId)) {
-        if (usedTokens + depEntry.estimatedTokens <= maxTokenBudget) {
+        let depTokens = depEntry.estimatedTokens;
+        let depExcerpt: string | undefined;
+        if (compactSections) {
+          const perDepCap = Math.max(
+            140,
+            Math.floor((params.maxSectionTokens ?? maxTokenBudget) / Math.max(1, maxDocs + 1)),
+          );
+          const extractedDep = extractCompactMarkdownExcerpt(
+            path.join(absRoot, depEntry.path),
+            qTokens,
+            perDepCap,
+          );
+          if (extractedDep) {
+            depExcerpt = extractedDep.excerpt;
+            depTokens = Math.min(depEntry.estimatedTokens, extractedDep.tokens);
+          }
+        }
+        if (usedTokens + depTokens <= maxTokenBudget) {
           const depNorm = depEntry.title.trim().toLowerCase();
           if (seenTitles.has(depNorm)) {
             duplicatesRemoved += 1;
@@ -279,7 +378,7 @@ export function retrieveTaskKnowledge(
           }
           selectedIds.add(depEntry.id);
           seenTitles.add(depNorm);
-          usedTokens += depEntry.estimatedTokens;
+          usedTokens += depTokens;
           const depSource = inferSourceType(depEntry);
           selected.push({
             entry: depEntry,
@@ -290,6 +389,8 @@ export function retrieveTaskKnowledge(
                 ? 'SOURCE_BACKED'
                 : 'FRAMEWORK_REFERENCE',
             includedDependencyOf: entry.id,
+            compactExcerpt: depExcerpt,
+            effectiveTokens: depTokens,
           });
         }
       }

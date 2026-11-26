@@ -26,14 +26,15 @@ Verify every code change, generative model selection, Colab T4 manifest, exporte
 1. **Separate Verification from Production Claims**
    - Treat every earlier edit, script generation, or model selection as unverified until real post-edit checks run (`references/qa-verification-standards.md`, `references/single-ai-architecture.md`).
 
-2. **Run Static Analysis, Hot-Loop, PBR, and Security Audits**
+2. **Run Static Analysis, Hot-Loop, PBR, Token-Budget, and Security Audits**
    - Run TypeScript/compiler lint (`tsc --noEmit` or project build check).
+   - Verify >= 85% token usage reduction across all 10 targets via `npx tsx scripts/afo.ts token-budget` (`references/token-budget-architecture.md`).
    - Scan hot loops with `npx tsx scripts/check-hot-loop.ts` and Three.js look-dev scenes with `npx tsx scripts/audit-pbr-scene.ts`.
    - Inspect changed files for leaked tokens, path traversal, or silent fallback to paid APIs or non-T4 GPUs (`references/model-capability-registry.md`).
 
 3. **Run Tests and Reconcile Colab T4 Drive Jobs**
    - Run the automated test suite and capture exact command exit codes.
-   - Audit prepared Colab jobs (`MyDrive/ALL_FOR_ONE/jobs/<job_id>`) using `scripts/mcp-bridge.ts` (`validate_job_manifest`, `inspect_job_outputs`) and confirm no L4/A100/High-RAM assumptions slipped in (`references/antigravity-colab-t4-bridge.md`, `references/cloud-colab-rendering.md`).
+   - Audit prepared Colab jobs (`MyDrive/ALL_FOR_ONE/jobs/<job_id>`) and returned `output_checksums.json` artifacts using `scripts/mcp-bridge.ts` (`validate_job_manifest`, `inspect_job_outputs`) and confirm no L4/A100/High-RAM assumptions slipped in (`references/antigravity-colab-t4-bridge.md`, `references/cloud-colab-rendering.md`).
 
 4. **Validate Exported 3D Assets and Visual Renders Honestly**
    - Check tool availability via `node scripts/install.mjs --check-tools`.

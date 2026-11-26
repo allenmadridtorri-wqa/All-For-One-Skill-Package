@@ -1,12 +1,16 @@
 export type FrontierTarget = 'claude' | 'antigravity' | 'chatgpt';
+export type ExtendedTarget = 'cursor' | 'windsurf' | 'cline' | 'copilot' | 'gemini-cli' | 'opencode';
+export type SupportedTarget = FrontierTarget | ExtendedTarget;
 
 export const FRONTIER_TARGETS: FrontierTarget[];
+export const EXTENDED_TARGETS: ExtendedTarget[];
+export const SUPPORTED_TARGETS: SupportedTarget[];
 export const SKILL_COMMANDS: readonly string[];
 
 export interface InstallOptions {
   sourceRoot: string;
   targetRoot: string;
-  target?: FrontierTarget | 'all';
+  target?: SupportedTarget | 'all';
   global?: boolean;
   homeDir?: string;
   dryRun?: boolean;
@@ -29,7 +33,7 @@ export interface InstallResult {
   dryRun: boolean;
   force: boolean;
   scope: 'global' | 'workspace';
-  targets: FrontierTarget[];
+  targets: SupportedTarget[];
   manifestPath: string;
   backupRoot: string | null;
   actions: InstallAction[];
@@ -82,6 +86,7 @@ export function collectSkillSupportFiles(
   resolvedSource: string,
   skillMarkdown: string,
 ): Array<{ rel: string; full: string }>;
+export function generateCompactTargetRouter(targetName: string, skillRelRoot?: string): string;
 export function generateAntigravityWorkflow(cmd: string, skillMarkdown: string): string;
 export function assertSafeSubpath(baseDir: string, candidatePath: string): string;
 export function validateDestinationRoot(destRoot: string): string;

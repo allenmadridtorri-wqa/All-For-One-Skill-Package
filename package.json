@@ -25,6 +25,7 @@
     "afo:retrieve": "tsx scripts/afo.ts retrieve",
     "afo:models": "tsx scripts/afo.ts models --t4-only",
     "afo:mcp": "tsx scripts/mcp-bridge.ts",
+    "afo:token-budget": "tsx scripts/afo.ts token-budget",
     "afo:qa": "tsx scripts/afo.ts qa-report",
     "afo:test": "tsx --test scripts/afo.test.ts scripts/v2-framework.test.ts scripts/v3-framework.test.ts scripts/v3_1-framework.test.ts scripts/v3_2-framework.test.ts"
   },
