@@ -6,9 +6,25 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    build: {
+      emptyOutDir: false,
+    },
     plugins: [
       react(),
       tailwindcss(),
+      // Clears only Vite's own prior output (dist/index.html + dist/assets) so
+      // `npm run afo:build` cross-target bundles under dist/ are preserved.
+      {
+        name: 'preserve-afo-dist-bundles',
+        apply: 'build',
+        buildStart(): void {
+          const distDir = path.resolve(__dirname, 'dist');
+          const distIndex = path.join(distDir, 'index.html');
+          const distViteAssets = path.join(distDir, 'assets');
+          if (fs.existsSync(distIndex)) fs.rmSync(distIndex, { force: true });
+          if (fs.existsSync(distViteAssets)) fs.rmSync(distViteAssets, { recursive: true, force: true });
+        },
+      },
       // Copies src/assets into dist/ so root-relative URLs like
       // "/src/assets/images/..." (e.g. generate_image output) still resolve
       // in production builds. Do not remove.

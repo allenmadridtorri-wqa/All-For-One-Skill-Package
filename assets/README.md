@@ -11,3 +11,4 @@ Each utility in `assets/` is **engine-scoped**. Do not force TypeScript or GLSL 
 | `assets/ecs/math-scratch.ts` | Three.js / TypeScript | Seeded `mulberry32` PRNG, exponential damping, and pre-allocated `Float64Array` scratch buffers. |
 | `assets/ecs/resource-tracker.ts` | Three.js / TypeScript / WebAudio | Explicit GPU/audio `.dispose()` leak detector and synchronous micro-benchmark harness. |
 | `assets/shaders/*.glsl` | Three.js / WebGL2 / OpenGL | Reusable GLSL chunks (`common-noise`, `pbr-water`, `atmosphere-fog`, `foliage-wind`). Port math to HLSL for UE5/Unity or Godot Shading Language (`shader_type spatial`) when targeting those engines. |
+| `assets/prompts/all-for-one-system-prompt.md` | Cross-frontier AI hosts | Compact All-For-One V3.2 master system prompt enforcing single-AI ECONOMY mode, measurable bars, TELL LIST look-dev checks, and STATE BLOCK recovery. |

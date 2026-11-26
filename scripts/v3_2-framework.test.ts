@@ -487,3 +487,18 @@ test('HF Gradio Space schema inspector blocks SSRF hosts, parses schemas, and fa
   assert.equal(rateLimited.httpStatus, 429);
 });
 
+test('Master V3.2 system prompt asset exists cleanly and vite.config.ts preserves afo:build dist/ bundles', () => {
+  const promptPath = path.join(ROOT_DIR, 'assets', 'prompts', 'all-for-one-system-prompt.md');
+  assert.equal(fs.existsSync(promptPath), true);
+  const promptText = fs.readFileSync(promptPath, 'utf8');
+  assert.match(promptText, /ALL-FOR-ONE V3\.2/);
+  assert.match(promptText, /ECONOMY \(default\)/);
+  assert.match(promptText, /NVIDIA T4 16 GB/);
+  assert.match(promptText, /STATE BLOCK/);
+
+  const viteCfg = fs.readFileSync(path.join(ROOT_DIR, 'vite.config.ts'), 'utf8');
+  assert.match(viteCfg, /emptyOutDir:\s*false/);
+  assert.match(viteCfg, /preserve-afo-dist-bundles/);
+});
+
+
