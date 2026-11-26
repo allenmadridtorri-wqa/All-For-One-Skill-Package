@@ -1,5 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { validateExportedAsset, type AssetValidationReport } from './asset-pipeline.ts';
+import { detectBlenderInstallation, type BlenderExecutionResult } from './blender-bridge.ts';
+import type { EngineId } from './engine-profiles.ts';
+import { scanForSecrets, type SecretFinding } from './security.ts';
 
 export type VerificationStatus = 'VERIFIED' | 'PARTIALLY_VERIFIED' | 'UNVERIFIED' | 'FAILED';
 
@@ -17,11 +21,16 @@ export interface VerificationCheckRecord {
     | 'benchmark'
     | 'memory-profile'
     | 'crash-detection'
-    | 'dependency';
+    | 'dependency'
+    | 'security'
+    | 'blender-render'
+    | 'asset-pipeline';
   description: string;
   status: VerificationStatus;
   commandOrSource: string;
   evidence: string;
+  exitCode?: number | null;
+  logsExcerpt?: string;
   durationMs?: number;
 }
 
@@ -81,7 +90,7 @@ export function verifyVisualEvidenceFile(
       sizeBytes: stat.size,
       acceptedCriteria,
       status: 'PARTIALLY_VERIFIED',
-      reason: 'Screenshot exists, but no explicit visual acceptance criteria were documented.',
+      reason: 'Screenshot exists, but file existence alone is insufficient without visual acceptance criteria.',
     };
   }
   return {
@@ -91,6 +100,105 @@ export function verifyVisualEvidenceFile(
     acceptedCriteria,
     status: 'VERIFIED',
     reason: `Visual artifact verified (${stat.size} bytes) against ${acceptedCriteria.length} criteria.`,
+  };
+}
+
+/**
+ * Runs an independent QA security scan across specified source files for leaked secrets.
+ */
+export function runSecuritySecretScan(
+  rootDir: string,
+  relPaths: string[],
+): { check: VerificationCheckRecord; findings: SecretFinding[] } {
+  const findings: SecretFinding[] = [];
+  for (const rel of relPaths) {
+    const abs = path.resolve(rootDir, rel);
+    if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) continue;
+    const text = fs.readFileSync(abs, 'utf8');
+    findings.push(...scanForSecrets(text, rel));
+  }
+
+  return {
+    findings,
+    check: {
+      id: 'QA-SEC-SECRETS',
+      category: 'security',
+      description: 'Scan workspace artifacts and memory records for leaked API keys or credentials',
+      status: findings.length === 0 ? 'VERIFIED' : 'FAILED',
+      commandOrSource: 'core/security.ts#scanForSecrets',
+      exitCode: findings.length === 0 ? 0 : 1,
+      evidence:
+        findings.length === 0
+          ? `Scanned ${relPaths.length} file(s); 0 secret patterns detected.`
+          : `Detected ${findings.length} potential secret pattern(s) across ${relPaths.length} file(s).`,
+    },
+  };
+}
+
+/**
+ * Evaluates Blender headless execution + optional render output honestly.
+ */
+export function evaluateBlenderQaCheck(
+  blenderExec?: BlenderExecutionResult,
+): VerificationCheckRecord {
+  const detection = detectBlenderInstallation();
+  if (!detection.available && !blenderExec) {
+    return {
+      id: 'QA-BLENDER-RUNTIME',
+      category: 'blender-render',
+      description: 'Verify Blender headless scene execution and rendering',
+      status: 'UNVERIFIED',
+      commandOrSource: 'blender --version',
+      exitCode: null,
+      evidence: detection.note,
+    };
+  }
+  if (!blenderExec) {
+    return {
+      id: 'QA-BLENDER-RUNTIME',
+      category: 'blender-render',
+      description: 'Verify Blender headless scene execution and rendering',
+      status: 'UNVERIFIED',
+      commandOrSource: `blender (${detection.version ?? 'detected'})`,
+      exitCode: null,
+      evidence: 'Blender is installed, but no scene execution result was submitted to QA.',
+    };
+  }
+  return {
+    id: 'QA-BLENDER-RUNTIME',
+    category: 'blender-render',
+    description: 'Verify Blender headless scene execution and rendering',
+    status: blenderExec.status,
+    commandOrSource: blenderExec.command.join(' '),
+    exitCode: blenderExec.exitCode,
+    logsExcerpt: (blenderExec.stderr || blenderExec.stdout).slice(0, 300),
+    evidence: blenderExec.reason,
+  };
+}
+
+/**
+ * Converts exported 3D asset validation into an independent QA VerificationCheckRecord.
+ */
+export function evaluateExportedAssetQaCheck(
+  workspaceDir: string,
+  assetRelPath: string,
+  targetEngine: EngineId,
+): { check: VerificationCheckRecord; report: AssetValidationReport } {
+  const report = validateExportedAsset(workspaceDir, assetRelPath, targetEngine);
+  return {
+    report,
+    check: {
+      id: `QA-ASSET-${targetEngine.toUpperCase()}`,
+      category: 'asset-pipeline',
+      description: `Validate exported ${report.format.toUpperCase()} asset for ${targetEngine}`,
+      status: report.status,
+      commandOrSource: `validateExportedAsset("${assetRelPath}", "${targetEngine}")`,
+      exitCode: report.status === 'FAILED' ? 1 : 0,
+      evidence:
+        report.status === 'FAILED'
+          ? `Issues: ${report.issues.join('; ')}`
+          : `Meshes=${report.meshCount}, Materials=${report.materialCount}, UVs=${report.hasUvs}, Normals=${report.hasNormals}. ${report.warnings.join('; ')}`.trim(),
+    },
   };
 }
 
@@ -140,15 +248,16 @@ export function formatVerificationReportMarkdown(report: VerificationReportPaylo
     `- **Overall Status:** \`${report.overallStatus}\``,
     `- **Summary:** VERIFIED=${report.counts.VERIFIED} | PARTIALLY_VERIFIED=${report.counts.PARTIALLY_VERIFIED} | UNVERIFIED=${report.counts.UNVERIFIED} | FAILED=${report.counts.FAILED}`,
     '',
-    '## Engineering & Automated Checks',
+    '## Engineering, Security, Asset & Runtime Checks',
     '',
-    '| ID | Category | Status | Command / Source | Evidence |',
-    '| :--- | :--- | :--- | :--- | :--- |',
+    '| ID | Category | Status | Exit Code | Command / Source | Evidence |',
+    '| :--- | :--- | :--- | :--- | :--- | :--- |',
   ];
 
   for (const c of report.checks) {
+    const codeStr = c.exitCode === undefined || c.exitCode === null ? 'n/a' : String(c.exitCode);
     lines.push(
-      `| ${c.id} | ${c.category} | \`${c.status}\` | \`${c.commandOrSource}\` | ${c.evidence} |`,
+      `| ${c.id} | ${c.category} | \`${c.status}\` | ${codeStr} | \`${c.commandOrSource}\` | ${c.evidence} |`,
     );
   }
 
@@ -168,8 +277,8 @@ export function formatVerificationReportMarkdown(report: VerificationReportPaylo
     '## Verification Taxonomy Policy',
     '- **VERIFIED:** Executed and passed with concrete tool/artifact evidence.',
     '- **PARTIALLY_VERIFIED:** Subset of requirements verified; remaining items explicitly listed.',
-    '- **UNVERIFIED:** Not executed in the current environment (e.g., external engine runtime or live LLM API calls without credentials).',
-    '- **FAILED:** Executed and produced an error or failed assertion.',
+    '- **UNVERIFIED:** Not executed in the current environment (e.g., Blender/engine runtime or live LLM API calls without credentials).',
+    '- **FAILED:** Executed and produced an error, security finding, or failed assertion.',
   );
 
   return lines.join('\n') + '\n';

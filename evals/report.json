@@ -1,10 +1,24 @@
 {
-  "version": "2.0.0",
-  "generatedAt": "2026-11-26T05:54:21.360Z",
+  "version": "3.0.0",
+  "generatedAt": "2026-11-26T06:22:53.534Z",
   "evaluationMode": "deterministic-static-and-policy",
   "liveModelEvaluationStatus": "UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER",
-  "totalCases": 120,
-  "passedCases": 120,
+  "model": "afo-deterministic-v3 (no live LLM API invoked)",
+  "configuration": {
+    "adapterKind": "offline-deterministic",
+    "retrievalMaxTokens": 6000,
+    "hardwareTier": "standard"
+  },
+  "environment": {
+    "nodeVersion": "v22.23.5",
+    "platform": "linux",
+    "arch": "x64",
+    "cpuCores": 4,
+    "blenderAvailable": false,
+    "blenderVersion": null
+  },
+  "totalCases": 159,
+  "passedCases": 159,
   "accuracyPercent": 100,
   "byCategory": {
     "specialist-selection": {
@@ -43,8 +57,68 @@
       "accuracyPercent": 100
     },
     "failure-recovery": {
-      "total": 15,
-      "passed": 15,
+      "total": 18,
+      "passed": 18,
+      "accuracyPercent": 100
+    },
+    "coding-accuracy": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "architecture-quality": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "debugging": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "technical-research": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "game-development": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "blender-automation": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "3d-production-quality": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "visual-asset-pipelines": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "qa-accuracy": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "task-coordination": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "security": {
+      "total": 3,
+      "passed": 3,
+      "accuracyPercent": 100
+    },
+    "resource-efficiency": {
+      "total": 3,
+      "passed": 3,
       "accuracyPercent": 100
     }
   },
@@ -124,7 +198,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -202,7 +276,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 6,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -280,7 +354,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": "unreal5",
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -462,7 +536,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -475,7 +549,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -501,7 +575,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 5,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -514,7 +588,7 @@
       "expectedAction": "orchestrate-multi",
       "detectedEngine": "threejs",
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 5,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -579,7 +653,7 @@
       "expectedAction": "orchestrate-multi",
       "detectedEngine": "rust",
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -631,7 +705,7 @@
       "expectedAction": "orchestrate-multi",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 2,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -670,7 +744,7 @@
       "expectedAction": "orchestrate-multi",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 5,
+      "knowledgeDocsRetrieved": 6,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -696,7 +770,7 @@
       "expectedAction": "orchestrate-multi",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 2,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -709,7 +783,7 @@
       "expectedAction": "ask-clarification",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 3,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -722,7 +796,7 @@
       "expectedAction": "ask-clarification",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 0,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -735,7 +809,7 @@
       "expectedAction": "ask-clarification",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 0,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -748,7 +822,7 @@
       "expectedAction": "ask-clarification",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 0,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -761,7 +835,7 @@
       "expectedAction": "ask-clarification",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 0,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -774,7 +848,7 @@
       "expectedAction": "ask-clarification",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 1,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -787,7 +861,7 @@
       "expectedAction": "ask-clarification",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 0,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -800,7 +874,7 @@
       "expectedAction": "ask-clarification",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 0,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -813,7 +887,7 @@
       "expectedAction": "ask-clarification",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 0,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -826,7 +900,7 @@
       "expectedAction": "ask-clarification",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 0,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -930,7 +1004,7 @@
       "expectedAction": "reject-conflict",
       "detectedEngine": null,
       "conflictDetected": true,
-      "knowledgeDocsRetrieved": 5,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1034,7 +1108,7 @@
       "expectedAction": "run-verification-tool",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 5,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1060,7 +1134,7 @@
       "expectedAction": "run-verification-tool",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 5,
+      "knowledgeDocsRetrieved": 6,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1112,7 +1186,7 @@
       "expectedAction": "run-verification-tool",
       "detectedEngine": "threejs",
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 6,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1151,7 +1225,7 @@
       "expectedAction": "run-verification-tool",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1164,7 +1238,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": "unreal5",
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1307,7 +1381,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 5,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1398,7 +1472,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 6,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1411,7 +1485,7 @@
       "expectedAction": "route-specialist",
       "detectedEngine": null,
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 5,
+      "knowledgeDocsRetrieved": 4,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1476,7 +1550,7 @@
       "expectedAction": "trigger-retry-recovery",
       "detectedEngine": "threejs",
       "conflictDetected": false,
-      "knowledgeDocsRetrieved": 4,
+      "knowledgeDocsRetrieved": 6,
       "notes": "Deterministic policy & routing matched."
     },
     {
@@ -1604,6 +1678,513 @@
       "expectedSpecialist": "crazycoder",
       "predictedAction": "trigger-retry-recovery",
       "expectedAction": "trigger-retry-recovery",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-CODE-01",
+      "category": "coding-accuracy",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "threejs",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-CODE-02",
+      "category": "coding-accuracy",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "rust",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-CODE-03",
+      "category": "coding-accuracy",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "godot",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-ARCH-01",
+      "category": "architecture-quality",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "rust",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-ARCH-02",
+      "category": "architecture-quality",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "unreal5",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-ARCH-03",
+      "category": "architecture-quality",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "unity",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-DBG-01",
+      "category": "debugging",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "threejs",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-DBG-02",
+      "category": "debugging",
+      "passed": true,
+      "predictedSpecialist": "crazydesigner",
+      "expectedSpecialist": "crazydesigner",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "rust",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 5,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-DBG-03",
+      "category": "debugging",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "unity",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-RES-01",
+      "category": "technical-research",
+      "passed": true,
+      "predictedSpecialist": "crazydesigner",
+      "expectedSpecialist": "crazydesigner",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "unreal5",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-RES-02",
+      "category": "technical-research",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "godot",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-RES-03",
+      "category": "technical-research",
+      "passed": true,
+      "predictedSpecialist": "crazyqa",
+      "expectedSpecialist": "crazyqa",
+      "predictedAction": "run-verification-tool",
+      "expectedAction": "run-verification-tool",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-GAME-01",
+      "category": "game-development",
+      "passed": true,
+      "predictedSpecialist": "crazymaker",
+      "expectedSpecialist": "crazymaker",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-GAME-02",
+      "category": "game-development",
+      "passed": true,
+      "predictedSpecialist": "crazymaker",
+      "expectedSpecialist": "crazymaker",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 5,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-GAME-03",
+      "category": "game-development",
+      "passed": true,
+      "predictedSpecialist": "crazy",
+      "expectedSpecialist": "crazy",
+      "predictedAction": "orchestrate-multi",
+      "expectedAction": "orchestrate-multi",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-BLND-01",
+      "category": "blender-automation",
+      "passed": true,
+      "predictedSpecialist": "crazydesigner",
+      "expectedSpecialist": "crazydesigner",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-BLND-02",
+      "category": "blender-automation",
+      "passed": true,
+      "predictedSpecialist": "crazydesigner",
+      "expectedSpecialist": "crazydesigner",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-BLND-03",
+      "category": "blender-automation",
+      "passed": true,
+      "predictedSpecialist": "crazydesigner",
+      "expectedSpecialist": "crazydesigner",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-3D-01",
+      "category": "3d-production-quality",
+      "passed": true,
+      "predictedSpecialist": "crazydesigner",
+      "expectedSpecialist": "crazydesigner",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 5,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-3D-02",
+      "category": "3d-production-quality",
+      "passed": true,
+      "predictedSpecialist": "crazydesigner",
+      "expectedSpecialist": "crazydesigner",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-3D-03",
+      "category": "3d-production-quality",
+      "passed": true,
+      "predictedSpecialist": "crazyqa",
+      "expectedSpecialist": "crazyqa",
+      "predictedAction": "run-verification-tool",
+      "expectedAction": "run-verification-tool",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-PIPE-01",
+      "category": "visual-asset-pipelines",
+      "passed": true,
+      "predictedSpecialist": "crazydesigner",
+      "expectedSpecialist": "crazydesigner",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "unreal5",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-PIPE-02",
+      "category": "visual-asset-pipelines",
+      "passed": true,
+      "predictedSpecialist": "crazydesigner",
+      "expectedSpecialist": "crazydesigner",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "unity",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-PIPE-03",
+      "category": "visual-asset-pipelines",
+      "passed": true,
+      "predictedSpecialist": "crazyqa",
+      "expectedSpecialist": "crazyqa",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": "godot",
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-QA-01",
+      "category": "qa-accuracy",
+      "passed": true,
+      "predictedSpecialist": "crazyqa",
+      "expectedSpecialist": "crazyqa",
+      "predictedAction": "run-verification-tool",
+      "expectedAction": "run-verification-tool",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-QA-02",
+      "category": "qa-accuracy",
+      "passed": true,
+      "predictedSpecialist": "crazyqa",
+      "expectedSpecialist": "crazyqa",
+      "predictedAction": "reject-conflict",
+      "expectedAction": "reject-conflict",
+      "detectedEngine": null,
+      "conflictDetected": true,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-QA-03",
+      "category": "qa-accuracy",
+      "passed": true,
+      "predictedSpecialist": "crazyqa",
+      "expectedSpecialist": "crazyqa",
+      "predictedAction": "run-verification-tool",
+      "expectedAction": "run-verification-tool",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-COORD-01",
+      "category": "task-coordination",
+      "passed": true,
+      "predictedSpecialist": "crazy",
+      "expectedSpecialist": "crazy",
+      "predictedAction": "orchestrate-multi",
+      "expectedAction": "orchestrate-multi",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 5,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-COORD-02",
+      "category": "task-coordination",
+      "passed": true,
+      "predictedSpecialist": "crazy",
+      "expectedSpecialist": "crazy",
+      "predictedAction": "orchestrate-multi",
+      "expectedAction": "orchestrate-multi",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-COORD-03",
+      "category": "task-coordination",
+      "passed": true,
+      "predictedSpecialist": "crazy",
+      "expectedSpecialist": "crazy",
+      "predictedAction": "orchestrate-multi",
+      "expectedAction": "orchestrate-multi",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-SEC-01",
+      "category": "security",
+      "passed": true,
+      "predictedSpecialist": "crazyqa",
+      "expectedSpecialist": "crazyqa",
+      "predictedAction": "run-verification-tool",
+      "expectedAction": "run-verification-tool",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-SEC-02",
+      "category": "security",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "reject-conflict",
+      "expectedAction": "reject-conflict",
+      "detectedEngine": "unreal5",
+      "conflictDetected": true,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-SEC-03",
+      "category": "security",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-REC-01",
+      "category": "failure-recovery",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "trigger-retry-recovery",
+      "expectedAction": "trigger-retry-recovery",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-REC-02",
+      "category": "failure-recovery",
+      "passed": true,
+      "predictedSpecialist": "crazydesigner",
+      "expectedSpecialist": "crazydesigner",
+      "predictedAction": "trigger-retry-recovery",
+      "expectedAction": "trigger-retry-recovery",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-REC-03",
+      "category": "failure-recovery",
+      "passed": true,
+      "predictedSpecialist": "crazyqa",
+      "expectedSpecialist": "crazyqa",
+      "predictedAction": "trigger-retry-recovery",
+      "expectedAction": "trigger-retry-recovery",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-EFF-01",
+      "category": "resource-efficiency",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-EFF-02",
+      "category": "resource-efficiency",
+      "passed": true,
+      "predictedSpecialist": "crazyqa",
+      "expectedSpecialist": "crazyqa",
+      "predictedAction": "run-verification-tool",
+      "expectedAction": "run-verification-tool",
+      "detectedEngine": null,
+      "conflictDetected": false,
+      "knowledgeDocsRetrieved": 4,
+      "notes": "Deterministic policy & routing matched."
+    },
+    {
+      "id": "V3-EFF-03",
+      "category": "resource-efficiency",
+      "passed": true,
+      "predictedSpecialist": "crazycoder",
+      "expectedSpecialist": "crazycoder",
+      "predictedAction": "route-specialist",
+      "expectedAction": "route-specialist",
       "detectedEngine": null,
       "conflictDetected": false,
       "knowledgeDocsRetrieved": 4,

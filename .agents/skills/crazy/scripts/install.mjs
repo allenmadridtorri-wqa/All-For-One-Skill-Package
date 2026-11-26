@@ -6,7 +6,12 @@
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { safeInstall, safeUninstall } from '../core/installer-engine.mjs';
+import {
+  detectExternalTools,
+  safeInstall,
+  safeUninstall,
+  verifyInstallIntegrity,
+} from '../core/installer-engine.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,16 +23,19 @@ function parseCliArgs(argv) {
   const target = targetArg ? targetArg.split('=')[1] : 'all';
   const dryRun = args.has('--dry-run');
   const force = args.has('--force');
+  const yes = args.has('--yes');
   const uninstall = args.has('--uninstall');
+  const verify = args.has('--verify');
+  const checkTools = args.has('--check-tools');
   const global = args.has('--global') || !args.has('--workspace');
   const help = args.has('--help') || args.has('-h');
-  return { target, dryRun, force, uninstall, global, help };
+  return { target, dryRun, force, yes, uninstall, verify, checkTools, global, help };
 }
 
 function main() {
   const opts = parseCliArgs(process.argv.slice(2));
   if (opts.help) {
-    console.log(`All For One V2 Safe Installer
+    console.log(`All For One V3 Safe Installer
 
 Usage:
   node scripts/install.mjs [options]
@@ -37,9 +45,28 @@ Options:
   --workspace            Install into current working directory
   --target=<name>        claude | antigravity | chatgpt | all (default: all)
   --dry-run              Preview planned changes without writing files
-  --force                Overwrite user-modified owned files (creates backup first)
+  --force                Overwrite user-modified owned files (requires --yes; creates backup first)
+  --yes                  Confirm destructive --force overwrite operations
   --uninstall            Safely remove only package-owned unmodified files
+  --verify               Verify SHA-256 integrity of installed files against manifest
+  --check-tools          Detect Node.js, Git, and optional Blender availability
 `);
+    return;
+  }
+
+  if (opts.checkTools) {
+    const tools = detectExternalTools();
+    console.log('External Tools Availability:');
+    console.log(`  node:    ${tools.node.available ? `AVAILABLE (${tools.node.version})` : 'MISSING (REQUIRED)'}`);
+    console.log(`  git:     ${tools.git.available ? `AVAILABLE (${tools.git.version})` : 'NOT FOUND (optional)'}`);
+    console.log(`  blender: ${tools.blender.available ? `AVAILABLE (${tools.blender.version})` : 'NOT FOUND (optional 3D/Blender automation unavailable)'}`);
+    return;
+  }
+
+  if (opts.verify) {
+    const integrity = verifyInstallIntegrity({ targetRoot: process.cwd(), global: opts.global });
+    console.log(integrity.message);
+    if (!integrity.ok) process.exit(1);
     return;
   }
 
@@ -63,10 +90,14 @@ Options:
     global: opts.global,
     dryRun: opts.dryRun,
     force: opts.force,
+    requireApprovalForForce: true,
+    destructiveApproval: opts.yes
+      ? { approved: true, actor: 'cli-user', reason: 'Passed --yes on installer CLI' }
+      : undefined,
   });
 
   console.log(
-    `${opts.dryRun ? '[DRY-RUN] ' : ''}All For One V2 (${res.scope}, targets=${res.targets.join(',')}): ` +
+    `${opts.dryRun ? '[DRY-RUN] ' : ''}All For One V3 (${res.scope}, targets=${res.targets.join(',')}): ` +
       `created=${res.summary.created}, updated=${res.summary.updated}, ` +
       `unchanged=${res.summary.unchanged}, skippedUserModified=${res.summary.skippedUserModified}`,
   );

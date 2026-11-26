@@ -3,6 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { EngineId } from './engine-profiles.ts';
+import {
+  assertSafeSubpathSync,
+  atomicWriteFileSync,
+  withAdvisoryLock,
+} from './security.ts';
 
 // ---------------------------------------------------------------------------
 // 1. Hardware Resource Awareness
@@ -447,12 +452,16 @@ export function hashInputs(parts: Array<string | Buffer>): string {
 }
 
 export class RenderSafetyManager {
+  private readonly workspaceDir: string;
   private readonly manifestPath: string;
   private readonly backupDir: string;
+  private readonly lockPath: string;
 
   constructor(workspaceDir: string, manifestRelPath = '.afo/render-manifest.json') {
-    this.manifestPath = path.resolve(workspaceDir, manifestRelPath);
-    this.backupDir = path.resolve(workspaceDir, '.afo/render-backups');
+    this.workspaceDir = path.resolve(workspaceDir);
+    this.manifestPath = assertSafeSubpathSync(this.workspaceDir, manifestRelPath);
+    this.backupDir = assertSafeSubpathSync(this.workspaceDir, '.afo/render-backups');
+    this.lockPath = assertSafeSubpathSync(this.workspaceDir, '.afo/render.lock');
   }
 
   loadManifest(jobId = 'default-job'): RenderManifest {
@@ -460,7 +469,7 @@ export class RenderSafetyManager {
       return JSON.parse(fs.readFileSync(this.manifestPath, 'utf8')) as RenderManifest;
     }
     return {
-      version: '2.0.0',
+      version: '3.0.0',
       jobId,
       state: 'PENDING',
       checkpoints: [],
@@ -469,21 +478,20 @@ export class RenderSafetyManager {
   }
 
   saveManifest(manifest: RenderManifest): void {
-    fs.mkdirSync(path.dirname(this.manifestPath), { recursive: true });
-    fs.writeFileSync(this.manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+    atomicWriteFileSync(this.manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   }
 
   isOutputStale(outputRelPath: string, expectedInputHash: string, baseDir: string): boolean {
     const manifest = this.loadManifest();
     const record = manifest.outputs[outputRelPath];
-    const absOutput = path.resolve(baseDir, outputRelPath);
+    const absOutput = assertSafeSubpathSync(baseDir, outputRelPath);
     if (!record || !fs.existsSync(absOutput)) return true;
     if (record.inputHash !== expectedInputHash) return true;
     const currentOutputHash = hashInputs([fs.readFileSync(absOutput)]);
     return currentOutputHash !== record.outputHash;
   }
 
-  /** Backs up any existing verified output before replacing it with new output bytes. */
+  /** Backs up any existing verified output before replacing it with new output bytes safely and atomically. */
   commitOutputSafe(
     baseDir: string,
     outputRelPath: string,
@@ -491,43 +499,46 @@ export class RenderSafetyManager {
     inputHash: string,
     checkpointLabel?: string,
   ): { outputPath: string; backedUpTo: string | null } {
-    const absOutput = path.resolve(baseDir, outputRelPath);
-    let backedUpTo: string | null = null;
+    return withAdvisoryLock(this.lockPath, () => {
+      const absOutput = assertSafeSubpathSync(baseDir, outputRelPath);
+      let backedUpTo: string | null = null;
 
-    if (fs.existsSync(absOutput)) {
-      const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      const backupTarget = path.join(this.backupDir, ts, outputRelPath);
-      fs.mkdirSync(path.dirname(backupTarget), { recursive: true });
-      fs.copyFileSync(absOutput, backupTarget);
-      backedUpTo = backupTarget;
-    }
+      if (fs.existsSync(absOutput)) {
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupTarget = assertSafeSubpathSync(this.backupDir, path.join(ts, outputRelPath));
+        fs.mkdirSync(path.dirname(backupTarget), { recursive: true });
+        fs.copyFileSync(absOutput, backupTarget);
+        backedUpTo = backupTarget;
+      }
 
-    fs.mkdirSync(path.dirname(absOutput), { recursive: true });
-    fs.writeFileSync(absOutput, data);
+      atomicWriteFileSync(absOutput, data);
 
-    const manifest = this.loadManifest();
-    manifest.state = 'IN_PROGRESS';
-    if (checkpointLabel && !manifest.checkpoints.includes(checkpointLabel)) {
-      manifest.checkpoints.push(checkpointLabel);
-    }
-    manifest.outputs[outputRelPath] = {
-      outputPath: outputRelPath,
-      inputHash,
-      outputHash: hashInputs([data]),
-      sizeBytes: data.length,
-      verified: data.length > 0,
-      updatedAt: new Date().toISOString(),
-    };
-    this.saveManifest(manifest);
+      const manifest = this.loadManifest();
+      manifest.state = 'IN_PROGRESS';
+      if (checkpointLabel && !manifest.checkpoints.includes(checkpointLabel)) {
+        manifest.checkpoints.push(checkpointLabel);
+      }
+      manifest.outputs[outputRelPath] = {
+        outputPath: outputRelPath,
+        inputHash,
+        outputHash: hashInputs([data]),
+        sizeBytes: data.length,
+        verified: data.length > 0,
+        updatedAt: new Date().toISOString(),
+      };
+      this.saveManifest(manifest);
 
-    return { outputPath: absOutput, backedUpTo };
+      return { outputPath: absOutput, backedUpTo };
+    });
   }
 
   markJobState(state: JobState): RenderManifest {
-    const manifest = this.loadManifest();
-    manifest.state = state;
-    this.saveManifest(manifest);
-    return manifest;
+    return withAdvisoryLock(this.lockPath, () => {
+      const manifest = this.loadManifest();
+      manifest.state = state;
+      this.saveManifest(manifest);
+      return manifest;
+    });
   }
 
   detectInterruptedCheckpoints(): { interrupted: boolean; completedCheckpoints: string[] } {
@@ -537,4 +548,105 @@ export class RenderSafetyManager {
       completedCheckpoints: [...manifest.checkpoints],
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// 6. Configurable Task Budgets & Resource-Aware Controlled Parallel Scheduler
+// ---------------------------------------------------------------------------
+
+export interface TaskBudgetPolicy {
+  maxConcurrentJobs: number;
+  maxTaskRetries: number;
+  maxTotalDurationMs: number;
+  failFast: boolean;
+}
+
+export interface ScheduledTaskInput<T> {
+  id: string;
+  run: () => Promise<T>;
+}
+
+export interface ScheduledTaskOutcome<T> {
+  id: string;
+  ok: boolean;
+  value?: T;
+  error?: string;
+  durationMs: number;
+}
+
+export function createBudgetPolicy(
+  hardware: HardwareProfile = detectHardwareProfile(),
+  overrides: Partial<TaskBudgetPolicy> = {},
+): TaskBudgetPolicy {
+  const requestedParallel = overrides.maxConcurrentJobs ?? hardware.recommendedMaxParallelJobs;
+  return {
+    maxConcurrentJobs: Math.max(1, Math.min(requestedParallel, hardware.recommendedMaxParallelJobs)),
+    maxTaskRetries: overrides.maxTaskRetries ?? 2,
+    maxTotalDurationMs: overrides.maxTotalDurationMs ?? 60_000,
+    failFast: overrides.failFast ?? false,
+  };
+}
+
+/**
+ * Executes tasks with bounded hardware-aware concurrency and graceful per-task failure isolation.
+ */
+export async function runBoundedSchedule<T>(
+  tasks: Array<ScheduledTaskInput<T>>,
+  policy: TaskBudgetPolicy,
+): Promise<{
+  outcomes: Array<ScheduledTaskOutcome<T>>;
+  maxObservedConcurrency: number;
+  abortedForBudget: boolean;
+}> {
+  const outcomes: Array<ScheduledTaskOutcome<T>> = new Array(tasks.length);
+  const startAll = Date.now();
+  let nextIdx = 0;
+  let active = 0;
+  let maxObservedConcurrency = 0;
+  let abortedForBudget = false;
+
+  const worker = async () => {
+    while (nextIdx < tasks.length) {
+      if (Date.now() - startAll > policy.maxTotalDurationMs) {
+        abortedForBudget = true;
+        break;
+      }
+      const idx = nextIdx++;
+      const task = tasks[idx];
+      active += 1;
+      if (active > maxObservedConcurrency) maxObservedConcurrency = active;
+      const tStart = Date.now();
+      try {
+        const value = await task.run();
+        outcomes[idx] = {
+          id: task.id,
+          ok: true,
+          value,
+          durationMs: Date.now() - tStart,
+        };
+      } catch (err) {
+        outcomes[idx] = {
+          id: task.id,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+          durationMs: Date.now() - tStart,
+        };
+        if (policy.failFast) {
+          abortedForBudget = true;
+          active -= 1;
+          break;
+        }
+      }
+      active -= 1;
+    }
+  };
+
+  const workerCount = Math.min(policy.maxConcurrentJobs, Math.max(1, tasks.length));
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+  return {
+    outcomes: outcomes.filter(Boolean),
+    maxObservedConcurrency,
+    abortedForBudget,
+  };
 }

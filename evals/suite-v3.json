@@ -1,0 +1,57 @@
+{
+  "version": "3.0.0",
+  "description": "All-For-One V3 extended benchmark suite across all 13 evaluation domains (coding accuracy, architecture, debugging, technical research, game development, Blender automation, 3D production, asset pipelines, QA accuracy, task coordination, security, failure recovery, and resource efficiency).",
+  "cases": [
+    { "id": "V3-CODE-01", "category": "coding-accuracy", "prompt": "/crazycoder implement an Express REST endpoint with validated TypeScript DTO schemas", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist" },
+    { "id": "V3-CODE-02", "category": "coding-accuracy", "prompt": "Refactor fixed-timestep accumulator and object pool serialization in Rust", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist", "targetEngine": "rust" },
+    { "id": "V3-CODE-03", "category": "coding-accuracy", "prompt": "Check deprecated Godot 3 KinematicBody migration to Godot 4 CharacterBody3D", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist", "targetEngine": "godot" },
+
+    { "id": "V3-ARCH-01", "category": "architecture-quality", "prompt": "Analyze Cargo.toml and CMakeLists.txt build systems for modular ECS architecture", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist" },
+    { "id": "V3-ARCH-02", "category": "architecture-quality", "prompt": "Evaluate trade-offs between GAS Actor-Component and Mass Entity in UE5", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist", "targetEngine": "unreal5" },
+    { "id": "V3-ARCH-03", "category": "architecture-quality", "prompt": "Design assembly definitions (.asmdef) and ScriptableObject data architecture in Unity", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist", "targetEngine": "unity" },
+
+    { "id": "V3-DBG-01", "category": "debugging", "prompt": "Diagnose TS2345 TypeScript module resolution error in server build", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist" },
+    { "id": "V3-DBG-02", "category": "debugging", "prompt": "Debug WGSL shader compilation mismatch and undefined uniform binding", "expectedSpecialist": "crazydesigner", "expectedAction": "route-specialist" },
+    { "id": "V3-DBG-03", "category": "debugging", "prompt": "Trace Unity Addressables AsyncOperationHandle memory leak across level transitions", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist", "targetEngine": "unity" },
+
+    { "id": "V3-RES-01", "category": "technical-research", "prompt": "Retrieve Unreal 5 Lumen and Niagara official engine profile references within 2500 tokens", "expectedSpecialist": "crazydesigner", "expectedAction": "route-specialist", "targetEngine": "unreal5" },
+    { "id": "V3-RES-02", "category": "technical-research", "prompt": "Retrieve multiplayer replication and persistence references for Godot", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist", "targetEngine": "godot" },
+    { "id": "V3-RES-03", "category": "technical-research", "prompt": "Verify documentation provenance and detect outdated reference versions", "expectedSpecialist": "crazyqa", "expectedAction": "run-verification-tool" },
+
+    { "id": "V3-GAME-01", "category": "game-development", "prompt": "Design survival crafting progression, hunger decay, and dynamic NPC faction economy", "expectedSpecialist": "crazymaker", "expectedAction": "route-specialist" },
+    { "id": "V3-GAME-02", "category": "game-development", "prompt": "Tune hitstop, coyote time, and combat AI flanking behavior trees", "expectedSpecialist": "crazymaker", "expectedAction": "route-specialist" },
+    { "id": "V3-GAME-03", "category": "game-development", "prompt": "Build an open-world RPG vertical slice with /crazy across gameplay, Blender assets, code, and QA", "expectedSpecialist": "crazy", "expectedAction": "orchestrate-multi" },
+
+    { "id": "V3-BLND-01", "category": "blender-automation", "prompt": "Create a procedural Blender .blend scene with Geometry Nodes and PBR Principled BSDF materials", "expectedSpecialist": "crazydesigner", "expectedAction": "route-specialist" },
+    { "id": "V3-BLND-02", "category": "blender-automation", "prompt": "Configure headless Blender Cycles batch rendering with denoising and hardware sample clamping", "expectedSpecialist": "crazydesigner", "expectedAction": "route-specialist" },
+    { "id": "V3-BLND-03", "category": "blender-automation", "prompt": "Set up a Blender Rigify armature, rigid-body physics, and particle emitter script", "expectedSpecialist": "crazydesigner", "expectedAction": "route-specialist" },
+
+    { "id": "V3-3D-01", "category": "3d-production-quality", "prompt": "Execute Create -> Render -> Inspect -> Diagnose -> Improve visual iteration on dusk lighting", "expectedSpecialist": "crazydesigner", "expectedAction": "route-specialist" },
+    { "id": "V3-3D-02", "category": "3d-production-quality", "prompt": "Compare ACES Filmic look-dev variants and preserve the highest-scoring render output", "expectedSpecialist": "crazydesigner", "expectedAction": "route-specialist" },
+    { "id": "V3-3D-03", "category": "3d-production-quality", "prompt": "Verify render screenshot criteria rather than relying on file existence alone", "expectedSpecialist": "crazyqa", "expectedAction": "run-verification-tool" },
+
+    { "id": "V3-PIPE-01", "category": "visual-asset-pipelines", "prompt": "/crazydesigner export Blender character rig to Unreal Engine 5 FBX with Z-up and smoothing FACE", "expectedSpecialist": "crazydesigner", "expectedAction": "route-specialist", "targetEngine": "unreal5" },
+    { "id": "V3-PIPE-02", "category": "visual-asset-pipelines", "prompt": "/crazydesigner configure Unity FBX export clamping skin weights to 4 bones per vertex", "expectedSpecialist": "crazydesigner", "expectedAction": "route-specialist", "targetEngine": "unity" },
+    { "id": "V3-PIPE-03", "category": "visual-asset-pipelines", "prompt": "/crazyqa audit exported GLB mesh UVs, normals, non-unit scales, and material slots for Godot", "expectedSpecialist": "crazyqa", "expectedAction": "route-specialist", "targetEngine": "godot" },
+
+    { "id": "V3-QA-01", "category": "qa-accuracy", "prompt": "Run static analysis, unit tests, and build verification and mark missing Blender binary UNVERIFIED", "expectedSpecialist": "crazyqa", "expectedAction": "run-verification-tool" },
+    { "id": "V3-QA-02", "category": "qa-accuracy", "prompt": "Reject request to mark integration test VERIFIED without executing the test runner", "expectedSpecialist": "crazyqa", "expectedAction": "reject-conflict", "shouldDetectConflict": true },
+    { "id": "V3-QA-03", "category": "qa-accuracy", "prompt": "Audit exported GLB textures, UVs, and screenshot evidence before approving milestone", "expectedSpecialist": "crazyqa", "expectedAction": "run-verification-tool" },
+
+    { "id": "V3-COORD-01", "category": "task-coordination", "prompt": "/crazy coordinate crazymaker, crazydesigner, crazycoder, and crazyqa with TaskContracts", "expectedSpecialist": "crazy", "expectedAction": "orchestrate-multi" },
+    { "id": "V3-COORD-02", "category": "task-coordination", "prompt": "/crazy resolve conflict between high-poly PBR meshes and 60 FPS mobile frame budget", "expectedSpecialist": "crazy", "expectedAction": "orchestrate-multi" },
+    { "id": "V3-COORD-03", "category": "task-coordination", "prompt": "Decompose full 3D survival prototype into sequential specialist dependencies via /crazy", "expectedSpecialist": "crazy", "expectedAction": "orchestrate-multi" },
+
+    { "id": "V3-SEC-01", "category": "security", "prompt": "Run security scan for hardcoded API keys, path traversal, and symlink escapes", "expectedSpecialist": "crazyqa", "expectedAction": "run-verification-tool" },
+    { "id": "V3-SEC-02", "category": "security", "prompt": "Reject mixing Three.js APIs into Unreal 5 C++ source code", "expectedSpecialist": "crazycoder", "expectedAction": "reject-conflict", "targetEngine": "unreal5", "shouldDetectConflict": true, "codeSnippet": "import * as THREE from 'three';" },
+    { "id": "V3-SEC-03", "category": "security", "prompt": "Block destructive force overwrite without explicit approval", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist" },
+
+    { "id": "V3-REC-01", "category": "failure-recovery", "prompt": "Installer write failed mid-install; trigger atomic rollback recovery", "expectedSpecialist": "crazycoder", "expectedAction": "trigger-retry-recovery" },
+    { "id": "V3-REC-02", "category": "failure-recovery", "prompt": "Interrupted Blender batch render crashed; recover last verified checkpoint", "expectedSpecialist": "crazydesigner", "expectedAction": "trigger-retry-recovery" },
+    { "id": "V3-REC-03", "category": "failure-recovery", "prompt": "Unit test regression failed CI build; trigger escalation to engineering", "expectedSpecialist": "crazyqa", "expectedAction": "trigger-retry-recovery" },
+
+    { "id": "V3-EFF-01", "category": "resource-efficiency", "prompt": "Clamp parallel render jobs and iteration budget on constrained 2-core hardware", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist" },
+    { "id": "V3-EFF-02", "category": "resource-efficiency", "prompt": "Run hot-loop allocation check and ResourceLifecycleTracker leak audit", "expectedSpecialist": "crazyqa", "expectedAction": "run-verification-tool" },
+    { "id": "V3-EFF-03", "category": "resource-efficiency", "prompt": "Configure zero-cost offline deterministic model adapter without paid API keys", "expectedSpecialist": "crazycoder", "expectedAction": "route-specialist" }
+  ]
+}

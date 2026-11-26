@@ -1,6 +1,6 @@
-# All-For-One V2 — AI Game Development Engineering Framework
+# All-For-One V3 — AI Game Development & Software Engineering Framework
 
-**All-For-One V2** is a portable, engine-aware multi-specialist skill framework for **Claude**, **Google Antigravity**, and **ChatGPT / OpenAI Codex**. It organizes game production across four specialist disciplines coordinated by `/crazy` with structured task contracts, persistent production memory, engine-isolated technical profiles, selective knowledge retrieval, and strict verification rules.
+**All-For-One V3** is a portable, security-hardened multi-specialist engineering framework for **Claude**, **Google Antigravity**, and **ChatGPT / OpenAI Codex**. It preserves all V2 game-development orchestration, task contracts, and engine isolation while adding engineering intelligence across 8 stacks (6 game engines + full-stack web + general software), optional headless **Blender Python (`bpy`)** 3D automation, validated UE5/Unity/Godot/Three.js asset export pipelines, structured visual iteration, corruption-protected/secret-scrubbed memory, optional model adapters, and SHA-256 install verification.
 
 ---
 
@@ -8,80 +8,87 @@
 
 | Command | Specialist Role | Core Responsibilities |
 | :--- | :--- | :--- |
-| **`/crazy`** | **Unified Multi-Specialist Orchestrator** | Coordinates sequential `TaskContract` workflows across all four specialists, enforces dependencies and DAG ordering, manages retry budgets, persists `.afo-memory/` ledger records, and supports extension hooks (`audio_engineering`, `multiplayer_networking`, `world_generation`, `technical_art`, `animation`, `build_engineering`, `narrative_design`). |
-| **`/crazymaker`** | **Game Director** | Designs genre-specific gameplay systems (open-world, sandbox, MMORPG, RPG, survival, simulation/life, strategy, multiplayer), procedural world constraints, NPC behavior/AI, dynamic economies, quests, progression, emergent loops, balancing criteria, and acceptance tests before coding. |
-| **`/crazydesigner`** | **Visual Director** | Directs engine-specific PBR calibration, lighting, shaders, VFX, procedural materials, character appearance, animation/open-source mocap (`FreeMoCap`, `ToyXYZ`, `Mesh2Motion`, `Blender Rigify`), cinematics, environmental storytelling, spatial audio, and variant/render safety checks. |
-| **`/crazycoder`** | **Engineering Director** | Implements clean, engine-idiomatic modular architecture, fixed-timestep simulation (`1/60s`), zero-GC hot paths, object pooling, `ResourceLifecycleTracker` leak detection, networking/replication, serialization/save integrity, and performance benchmarks. |
-| **`/crazyqa`** | **Quality Assurance Director** | Performs independent verification across unit tests, integration tests, static analysis, build checks, memory profiling, benchmarks, and screenshot inspection using strict status reporting (`VERIFIED`, `PARTIALLY_VERIFIED`, `UNVERIFIED`, `FAILED`). |
+| **`/crazy`** | **Main Orchestrator** | Intelligently decomposes goals into sequential DAG `TaskContract` workflows, routes specialists, manages inter-agent messaging & conflict resolution (`core/collaboration.ts`), enforces retry/hardware budgets, persists `.afo-memory/`, and coordinates extension hooks (`audio_engineering`, `multiplayer_networking`, `world_generation`, `technical_art`, `animation`, `build_engineering`, `narrative_design`). |
+| **`/crazymaker`** | **Game Director & Technical Producer** | Designs genre-specific gameplay systems (open-world, sandbox, MMORPG, RPG, survival, simulation/life, strategy, multiplayer), procedural world rules, NPC behavior/utility AI, dynamic economies, quests, combat feel, balancing criteria, and pre-code acceptance tests. |
+| **`/crazydesigner`** | **Visual, 3D & Blender Production Director** | Directs art direction, reference analysis, optional headless Blender `bpy` automation (Geometry Nodes, Principled BSDF, Cycles/EEVEE hardware-bounded rendering, Rigify armatures, rigid-body physics), engine-calibrated FBX/glTF/GLB export, open-source mocap (`FreeMoCap`, `ToyXYZ`, `Mesh2Motion`), spatial audio, and the `Create -> Render -> Inspect -> Diagnose -> Improve -> Re-render` visual loop. |
+| **`/crazycoder`** | **Engineering Director** | Implements clean, modular, engine-idiomatic code across 6 game engines plus `web-fullstack` and `general-software`, analyzes dependencies (`package.json`, `Cargo.toml`, `CMakeLists.txt`, `.csproj`, `project.godot`, `.uproject`), diagnoses build errors, checks API/version deprecations, enforces fixed-timestep zero-GC hot paths, and writes companion tests. |
+| **`/crazyqa`** | **Independent QA & Security Director** | Executes independent unit/integration/regression tests, static checks (`tsc`, hot-loop, PBR), GLB/FBX asset audits, secret scanning (`scanForSecrets`), security verification, Blender runtime checks, and screenshot validation under strict status reporting (`VERIFIED`, `PARTIALLY_VERIFIED`, `UNVERIFIED`, `FAILED`). |
 
 ---
 
-## Supported Game Engines
+## Supported Engineering Stacks & Game Engines
 
-Engine profiles live in `core/engine-profiles.ts` and `references/engines/`. Implementation rules remain strictly isolated per target engine—Web/Three.js APIs are never mixed into Unreal, Unity, Godot, C++, or Rust codebases:
+V3 maintains strict per-engine API isolation (`core/engine-profiles.ts`) while extending architecture, dependency, error-diagnosis, and code-review intelligence (`core/engineering-intelligence.ts`) to general and web software:
 
-| Engine ID | Stack | Reference Profile |
-| :--- | :--- | :--- |
-| `unreal5` | Unreal Engine 5 / C++ | `references/engines/unreal5.md` |
-| `unity` | Unity / C# | `references/engines/unity.md` |
-| `godot` | Godot 4 / GDScript / C++ | `references/engines/godot.md` |
-| `threejs` | Three.js / TypeScript | `references/engines/threejs.md` |
-| `cpp-native` | Native C++ Engine / ECS | `references/engines/cpp-native.md` |
-| `rust` | Rust / Bevy / wgpu | `references/engines/rust.md` |
+| Stack / Engine ID | Scope | Asset Format (if 3D) | Key References |
+| :--- | :--- | :--- | :--- |
+| `unreal5` | Unreal Engine 5 / C++20 & Blueprints | FBX (Z-up, `-Y` fwd, smoothing `FACE`) | `references/engines/unreal5.md` |
+| `unity` | Unity / C# / URP / HDRP | FBX (Y-up, `-Z` fwd, `<= 4` bone weights) | `references/engines/unity.md` |
+| `godot` | Godot 4 / GDScript / GDExtension C++ | GLB (Y-up, `-Z` fwd, packed PBR) | `references/engines/godot.md` |
+| `threejs` | Three.js / TypeScript / GLSL / WGSL | GLB (Y-up, 1u=1m, `<= 4` mat slots) | `references/engines/threejs.md` |
+| `cpp-native` | Native C++20/23 / ECS / CMake | GLB (indexed triangle buffers) | `references/engines/cpp-native.md` |
+| `rust` | Rust / Bevy / wgpu / Cargo | GLB (native Bevy PBR + NamedAnimations) | `references/engines/rust.md` |
+| `web-fullstack` | TypeScript, React, Express, Vite, REST/DTOs | — | `core/engineering-intelligence.ts` |
+| `general-software` | CLIs, Python, Node/TS, Systems & Automation | — | `core/engineering-intelligence.ts` |
 
 ---
 
-## V2 Architecture Highlights
+## V3 Architecture Highlights
 
-1. **Structured Collaboration (`core/collaboration.ts`)**:
-   - Every task uses a `TaskContract` with a unique ID, assigned specialist, objective, inputs, outputs, dependencies (DAG cycle-checked), acceptance criteria, retry limits, review states, and mandatory `verificationEvidence` before review or approval.
-   - Executes sequentially when an environment cannot run concurrent subagents, without fabricating parallel communication.
-2. **Production Intelligence (`core/production-intelligence.ts`)**:
-   - **Hardware Guardrails**: Inspects host CPU/RAM and clamps render resolution, thread counts, and texture budgets.
-   - **Quality Contracts & Bounded Refinement**: Evaluates outputs against explicit thresholds and halts cleanly on `QUALITY_THRESHOLD_MET`, `NO_MEASURABLE_IMPROVEMENT`, `MAX_ITERATIONS_REACHED`, `TIME_BUDGET_EXHAUSTED`, or `REGRESSION_DETECTED`.
-   - **Variant Testing & Render Safety**: Compares parameter variants against shared quality contracts, tracks input hashes to detect stale renders, saves interrupted checkpoints, and backs up overwritten outputs.
-3. **Persistent Production Memory (`core/production-memory.ts`)**:
-   - Maintains durable markdown records (`PROJECT_BRIEF.md`, `QUALITY_STANDARDS.md`, `PROJECT_DECISIONS.md`, `ITERATION_HISTORY.md`, `PERFORMANCE_LEDGER.md`, `VISUAL_REFERENCE.md`, `VERIFICATION_REPORT.md`) plus failed-approach deduplication.
-4. **Selective Knowledge Retrieval (`core/knowledge-retrieval.ts`, `references/index.json`)**:
-   - Retrieves only engine-compatible, specialist-relevant documents within a strict token budget (`--budget=4000`), avoiding full-library context bloat.
-5. **Independent QA & Anti-Fabrication (`core/qa-verification.ts`)**:
-   - Enforces four explicit statuses: `VERIFIED`, `PARTIALLY_VERIFIED`, `UNVERIFIED`, `FAILED`. Never claims unexecuted tests, unverified visual screenshots, or external engine builds passed.
+1. **Security & Atomicity Layer (`core/security.ts`)**:
+   - **Symlink-Aware Path Confinement (`assertSafeSubpathSync`)**: Blocks `..`, null bytes, filesystem-root ops, and symlink escapes across ancestor and target path segments.
+   - **Atomic Writes & Advisory Locks**: Temp-sibling + rename writes (`atomicWriteFileSync`) and exclusive `wx` lockfiles (`withAdvisoryLock`) with stale-lock recovery prevent partial-write corruption and concurrent installer/ledger races.
+   - **Secret Redaction & Scanning**: Detects and redacts API keys, Bearer tokens, PEM keys, and database credential URIs before persisting memory ledgers (`redactSecrets`) and scans source files (`scanForSecrets`).
+   - **Destructive Action Guards**: Requires explicit `--yes` / `destructiveApproval` before `--force` overwrites.
+2. **Inter-Agent Collaboration & Goal Decomposition (`core/collaboration.ts`)**:
+   - Extends `TaskContract` workflows with `AgentMessage` handoffs, review feedback, failure escalations, conflict raising/resolution (`raiseConflict` / `resolveConflict`), artifact registries, and `decomposeGoalIntoTasks`.
+   - Executes sequentially unless an external host genuinely supports concurrent workers, without fabricating parallel activity.
+3. **Engineering Intelligence (`core/engineering-intelligence.ts`)**:
+   - Multi-manifest dependency inspection, deprecated/incompatible API detection (e.g., Unity `UnityEngine.WWW`, Godot 3 `KinematicBody`, cross-engine `THREE.*` leaks), error-log diagnosis, and automated code review checks.
+4. **Headless Blender Automation, Asset Pipelines & Visual Iteration**:
+   - **Blender Bridge (`core/blender-bridge.ts`, `assets/blender/export_engine_asset.py`)**: Probes `blender --version` without assuming installation; generates hardware-clamped `bpy` scripts (metric 1u=1m, Geometry Nodes, Principled BSDF, 3-point lighting, optional Rigify/armature + rigid-body physics, Cycles/EEVEE, FBX/GLB export); marks execution `UNVERIFIED` if Blender is absent.
+   - **Asset Validation (`core/asset-pipeline.ts`)**: Parses GLB binary headers/JSON chunks to verify meshes, `POSITION`/`NORMAL`/`TEXCOORD_0` UVs, materials, skins, animations, and unit scale; checks Kaydara/ASCII FBX headers.
+   - **Visual Iteration (`core/visual-iteration.ts`)**: Enforces `CREATE -> RENDER -> INSPECT -> DIAGNOSE -> IMPROVE -> RE_RENDER`, validates PNG/JPEG/WEBP magic bytes, rejects file-existence-only claims as `PARTIALLY_VERIFIED`, and preserves the highest-scoring verified render.
+5. **Corruption-Protected Memory & Provenance-Aware Retrieval (`core/production-memory.ts`, `core/knowledge-retrieval.ts`)**:
+   - `.afo-memory-state.json` stores SHA-256 checksums (`verifyIntegrity()`), tracks recurring failures and known-good artifacts, and automatically scrubs secrets.
+   - Knowledge retrieval across **25 indexed documents** adds `official-spec` / `engine-profile` priority weighting, title/ID deduplication, outdated-version checks, provenance tags, and query caching.
+6. **Optional Model Adapters (`core/model-adapter.ts`)**:
+   - Defaults to `OfflineDeterministicAdapter` (zero API cost, no paid keys or local GPU required); supports optional `local-http` or environment-configured providers with graceful offline fallback.
 
 ---
 
 ## Safe Cross-Platform Installation
 
-All installers (`install.sh`, `install.ps1`, and `scripts/install.mjs`) route through a single canonical engine (`core/installer-engine.mjs`) featuring:
-- **Path-traversal & null-byte protection** and destination-root deletion guards.
-- **Non-destructive merge**: Preserves unrelated custom files and user-modified owned files unless `--force` is passed.
-- **Timestamped backups**: Saves modified files to `.afo-backups/<timestamp>/` before overwrite.
-- **Atomic rollback**: Restores prior state if an installation step fails mid-flight.
-- **Dry-run preview & safe uninstall**: `--dry-run` previews all changes; `--uninstall` removes only unmodified package-owned files tracked in `.afo-install-manifest.json`.
+All installers (`install.sh`, `install.ps1`, `scripts/install.mjs`) use `core/installer-engine.mjs`:
 
 ### macOS / Linux
 ```bash
 git clone https://github.com/allenmadridtorri-wqa/All-For-One-Skill-Package.git
 cd All-For-One-Skill-Package
 chmod +x install.sh
-./install.sh --dry-run            # Preview global install
+./install.sh --check-tools        # Check Node.js, Git, and optional Blender availability
+./install.sh --dry-run            # Preview global install with zero writes
 ./install.sh --global             # Install globally across Claude, Antigravity, ChatGPT/Codex
+./install.sh --verify             # Verify SHA-256 integrity of installed files
 ```
 
 ### Windows (PowerShell)
 ```powershell
-git clone https://github.com/allenmadridtorri-wqa/All-For-One-Skill-Package.git
-cd All-For-One-Skill-Package
+.\install.ps1 -CheckTools         # Check Node.js, Git, and optional Blender availability
 .\install.ps1 -DryRun             # Preview global install
 .\install.ps1                     # Install globally
 .\install.ps1 -Workspace          # Install into current workspace only
+.\install.ps1 -Verify             # Verify SHA-256 integrity
 .\install.ps1 -Uninstall          # Safe uninstall preserving custom files
 ```
 
-### Direct Node CLI Flags (`scripts/install.mjs`)
+### Direct Node CLI (`scripts/install.mjs`)
 ```bash
+node scripts/install.mjs --check-tools
 node scripts/install.mjs --target=claude --global
 node scripts/install.mjs --target=antigravity --workspace
-node scripts/install.mjs --target=chatgpt --global --force
+node scripts/install.mjs --target=chatgpt --workspace --force --yes   # --yes required for --force
+node scripts/install.mjs --verify --workspace
 node scripts/install.mjs --uninstall --global
 ```
 
@@ -95,35 +102,49 @@ node scripts/install.mjs --uninstall --global
 
 ---
 
-## CLI Commands, Validation & Packaging
+## CLI Commands, Verification & Packaging
 
-Requires **Node.js >= 18**.
+Requires **Node.js >= 18** (`blender` is optional).
 
 ```bash
 npm run lint              # TypeScript typecheck (tsc --noEmit)
-npm run afo:validate      # Validate skills, frontmatter, links, and 23-doc knowledge index
-npm run afo:test          # Run 24 unit/integration tests (afo.test.ts + v2-framework.test.ts)
-npm run afo:eval          # Run 120-case V2 deterministic policy & routing evaluation suite
+npm run afo:validate      # Validate 5 skills, frontmatter, links, and 25-doc knowledge index
+npm run afo:test          # Run 34 unit/integration tests (afo, v2-framework, v3-framework)
+npm run afo:eval          # Run 159-case V2+V3 evaluation suite across 13 V3 benchmark domains
 npm run afo:eval:legacy   # Run 8-case backward-compatible trigger test
-npm run afo:retrieve -- --query="client prediction" --engine=unreal5 --budget=3500
+npm run afo:check-tools   # Report Node.js, Git, and optional Blender availability
+npm run afo:verify-install # Verify SHA-256 checksums of workspace target installs
+npm run afo:retrieve -- --query="blender gltf export" --engine=godot --budget=3500
 npm run afo:sync          # Safely sync workspace .claude/, .agent/, and .agents/
 npm run afo:build         # Build Claude ZIPs, Antigravity bundle, and ChatGPT Custom GPT bundle
-npm run afo:package-zip   # Create clean release/all-for-one-v2-complete.zip (no node_modules)
+npm run afo:package-zip   # Create clean release/All-For-One-Skill-Package-V3.zip
+npm run afo:qa            # Generate VERIFICATION_REPORT.md with security & Blender probes
 ```
 
 ---
 
-## Limitations & Compatibility
+## Documentation Index
 
-- **Offline / No Paid API Lock-in**: Core validation, collaboration contracts, retrieval, installer, and deterministic evaluation run locally on Node.js without paid APIs.
-- **External Engine Binaries**: Unreal Engine 5 (`UnrealBuildTool`), Unity CLI, Godot CLI, CMake/C++, and Rust/Cargo compilation checks are documented per engine profile; they only transition from `UNVERIFIED` to `VERIFIED` when executed in an environment where those toolchains are installed.
-- **Live LLM Model Evaluation**: `afo:eval` verifies deterministic routing, conflict rejection, tool policies, and retrieval coverage (`evaluationMode: deterministic-static-and-policy`), explicitly reporting `liveModelEvaluationStatus: UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER` when no live model runner is attached.
-- **Zero-Paid-API Media Tooling**: Animation/mocap workflows standardize on open-source pipelines (`FreeMoCap`, `ToyXYZ`, `ComfyUI-MotionCapture`, `Mesh2Motion`, `Blender Rigify`).
+- **Blender & 3D Asset Pipelines:** `docs/BLENDER_AND_ASSET_PIPELINES.md`
+- **Security Audit & Mitigations:** `SECURITY_AUDIT.md`
+- **V2 to V3 Migration Guide:** `MIGRATION_V2_TO_V3.md`
+- **Verification Status Report:** `VERIFICATION_REPORT.md`
+- **Cross-Frontier Flagship Benchmarks:** `evals/benchmarks.md`
+- **Changelog:** `CHANGELOG.md`
+
+---
+
+## Limitations & Honesty Guarantees
+
+- **Optional External Binaries:** Blender (`blender`), Unreal (`UnrealBuildTool`), Unity CLI, Godot CLI, CMake/C++, and Rust/Cargo are external toolchains. If any binary is unavailable on the host machine, checks depending on it explicitly report `UNVERIFIED` rather than fabricating pass results.
+- **Offline Evaluation Scope:** `afo:eval` (`159` cases across V2 + 13 V3 benchmark domains) verifies deterministic routing, policy enforcement, conflict rejection, security checks, and retrieval offline (`evaluationMode: deterministic-static-and-policy`), explicitly marking `liveModelEvaluationStatus: UNVERIFIED_OFFLINE_NO_LIVE_MODEL_RUNNER` when no live LLM API runner is attached.
+- **Visual Inspection Boundary:** Automated file/magic-byte and metadata validation (`inspectVisualRender`, `validateExportedAsset`) cannot replace subjective aesthetic review of rendered pixels without explicit visual acceptance criteria or a multimodal vision pass.
 
 ---
 
 ## Troubleshooting
 
-- **Installer skips a modified file**: By design, `safeInstall` skips files you edited locally unless `--force` is passed. With `--force`, your prior version is saved under `.afo-backups/<timestamp>/` before updating.
-- **Broken or missing references after adding docs**: Update `references/index.json` with accurate `engine`, `specialist`, `dependencies`, and `estimatedTokens`, then run `npm run afo:validate`.
-- **Workspace targets out of date after editing `skills/` or `core/`**: Run `npx tsx scripts/afo.ts sync --force`.
+- **`--force` rejected on CLI:** V3 requires `--yes` alongside `--force` to prevent accidental unapproved overwrites (`node scripts/install.mjs --workspace --force --yes`). Prior owned files are always backed up under `.afo-backups/<timestamp>/`.
+- **`Integrity check failed` (`--verify`):** Indicates local edits or missing files in `.claude/`, `.agent/`, or `.agents/`. Run `npx tsx scripts/afo.ts sync --force` to re-align with canonical files, or inspect the diff in `.afo-backups/`.
+- **`Blender unavailable` during 3D pipelines:** Install Blender 4.0+ and ensure `blender` is in your system `PATH`, then re-run `npm run afo:check-tools`. Offline `bpy` script generation and GLB/FBX inspection continue to work without Blender installed.
+- **`Concurrency lock held` error:** Remove a stale `.afo-install.lock` or `.afo-memory/.afo-memory.lock` only after confirming no other All-For-One process is actively writing (locks older than 30s auto-recover).

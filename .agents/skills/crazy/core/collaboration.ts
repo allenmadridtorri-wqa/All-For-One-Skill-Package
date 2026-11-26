@@ -71,30 +71,86 @@ export interface HandoffRecord {
   notes: string;
 }
 
+export interface AgentMessage {
+  id: string;
+  fromSpecialist: SpecialistId | 'crazy';
+  toSpecialist: SpecialistId | 'crazy';
+  taskId?: string;
+  kind: 'HANDOFF' | 'CONFLICT_RAISE' | 'CONFLICT_RESOLUTION' | 'REVIEW_FEEDBACK' | 'FAILURE_ESCALATION';
+  payload: string;
+  timestamp: string;
+}
+
+export interface ConflictRecord {
+  id: string;
+  raisedBy: SpecialistId;
+  between: [SpecialistId, SpecialistId];
+  topic: string;
+  status: 'OPEN' | 'RESOLVED';
+  resolution?: string;
+  resolvedBy?: SpecialistId | 'crazy';
+  timestamp: string;
+}
+
 export const CORE_SPECIALISTS: Record<CoreSpecialistId, SpecialistDescriptor> = {
   crazymaker: {
     id: 'crazymaker',
-    title: 'Game Director',
+    title: 'Game Director & Technical Producer',
     isCore: true,
-    capabilities: ['gameplay-design', 'genre-systems', 'balancing', 'ai-behavior', 'quests', 'economies'],
+    capabilities: [
+      'gameplay-design',
+      'genre-systems',
+      'balancing',
+      'ai-behavior',
+      'quests',
+      'economies',
+      'project-implementation',
+    ],
   },
   crazydesigner: {
     id: 'crazydesigner',
-    title: 'Visual Director',
+    title: 'Visual & 3D Production Director',
     isCore: true,
-    capabilities: ['pbr-materials', 'lighting', 'shaders', 'vfx', 'cinematics', 'animation', 'audio'],
+    capabilities: [
+      'pbr-materials',
+      'lighting',
+      'shaders',
+      'vfx',
+      'cinematics',
+      'animation',
+      'audio',
+      'blender-automation',
+      'asset-pipelines',
+    ],
   },
   crazycoder: {
     id: 'crazycoder',
     title: 'Engineering Director',
     isCore: true,
-    capabilities: ['architecture', 'ecs', 'physics', 'memory', 'networking', 'serialization', 'optimization'],
+    capabilities: [
+      'architecture',
+      'ecs',
+      'physics',
+      'memory',
+      'networking',
+      'serialization',
+      'optimization',
+      'software-engineering',
+    ],
   },
   crazyqa: {
     id: 'crazyqa',
     title: 'Quality Assurance Director',
     isCore: true,
-    capabilities: ['static-analysis', 'unit-tests', 'build-verification', 'runtime-qa', 'visual-qa', 'benchmarks'],
+    capabilities: [
+      'static-analysis',
+      'unit-tests',
+      'build-verification',
+      'runtime-qa',
+      'visual-qa',
+      'benchmarks',
+      'security-qa',
+    ],
   },
 };
 
@@ -148,6 +204,8 @@ export class CollaborationCoordinator {
   private readonly specialists = new Map<string, SpecialistDescriptor>();
   private readonly tasks = new Map<string, TaskContract>();
   private readonly handoffs: HandoffRecord[] = [];
+  private readonly messages: AgentMessage[] = [];
+  private readonly conflicts = new Map<string, ConflictRecord>();
 
   constructor(context: SharedProjectContext) {
     this.context = context;
@@ -163,6 +221,77 @@ export class CollaborationCoordinator {
 
   listSpecialists(): SpecialistDescriptor[] {
     return [...this.specialists.values()];
+  }
+
+  sendMessage(msg: Omit<AgentMessage, 'id' | 'timestamp'>): AgentMessage {
+    const full: AgentMessage = {
+      ...msg,
+      id: `MSG-${this.messages.length + 1}`,
+      timestamp: new Date().toISOString(),
+    };
+    this.messages.push(full);
+    return full;
+  }
+
+  getMessages(): AgentMessage[] {
+    return [...this.messages];
+  }
+
+  raiseConflict(
+    id: string,
+    raisedBy: SpecialistId,
+    between: [SpecialistId, SpecialistId],
+    topic: string,
+  ): ConflictRecord {
+    const rec: ConflictRecord = {
+      id,
+      raisedBy,
+      between,
+      topic,
+      status: 'OPEN',
+      timestamp: new Date().toISOString(),
+    };
+    this.conflicts.set(id, rec);
+    this.sendMessage({
+      fromSpecialist: raisedBy,
+      toSpecialist: 'crazy',
+      kind: 'CONFLICT_RAISE',
+      payload: `Conflict ${id} between ${between.join(' & ')}: ${topic}`,
+    });
+    return rec;
+  }
+
+  resolveConflict(
+    id: string,
+    resolution: string,
+    resolvedBy: SpecialistId | 'crazy' = 'crazy',
+  ): ConflictRecord {
+    const rec = this.conflicts.get(id);
+    if (!rec) throw new Error(`Unknown conflict "${id}".`);
+    rec.status = 'RESOLVED';
+    rec.resolution = resolution;
+    rec.resolvedBy = resolvedBy;
+    this.context.decisions.push({
+      id: `DEC-${this.context.decisions.length + 1}`,
+      owner: resolvedBy === 'crazy' ? 'crazymaker' : resolvedBy,
+      summary: `[Conflict ${id}] ${resolution}`,
+      timestamp: new Date().toISOString(),
+    });
+    this.sendMessage({
+      fromSpecialist: resolvedBy,
+      toSpecialist: rec.between[0],
+      kind: 'CONFLICT_RESOLUTION',
+      payload: resolution,
+    });
+    return rec;
+  }
+
+  getConflicts(): ConflictRecord[] {
+    return [...this.conflicts.values()];
+  }
+
+  registerArtifact(key: string, owner: SpecialistId, artifactPath: string, verified = false): void {
+    this.context.artifacts[key] = { owner, path: artifactPath, verified };
   }
 
   addTask(
@@ -305,10 +434,24 @@ export class CollaborationCoordinator {
       task.reviewState = 'APPROVED';
       task.status = 'COMPLETED';
       task.handoffNotes.push(`APPROVED: ${notes}`);
+      this.sendMessage({
+        fromSpecialist: 'crazyqa',
+        toSpecialist: task.assignedSpecialist,
+        taskId,
+        kind: 'REVIEW_FEEDBACK',
+        payload: `APPROVED: ${notes}`,
+      });
     } else {
       task.reviewState = 'CHANGES_REQUESTED';
       task.status = 'PENDING';
       task.handoffNotes.push(`CHANGES_REQUESTED: ${notes}`);
+      this.sendMessage({
+        fromSpecialist: 'crazyqa',
+        toSpecialist: task.assignedSpecialist,
+        taskId,
+        kind: 'REVIEW_FEEDBACK',
+        payload: `CHANGES_REQUESTED: ${notes}`,
+      });
     }
     this.refreshBlockedStates();
     return task;
@@ -321,6 +464,13 @@ export class CollaborationCoordinator {
     task.status = canRetry ? 'PENDING' : 'FAILED';
     task.reviewState = 'NOT_REVIEWED';
     task.handoffNotes.push(`FAILURE (attempt ${task.attemptCount}): ${reason}`);
+    this.sendMessage({
+      fromSpecialist: task.assignedSpecialist,
+      toSpecialist: 'crazy',
+      taskId,
+      kind: 'FAILURE_ESCALATION',
+      payload: `Failure attempt ${task.attemptCount}/${task.maxRetries + 1}: ${reason}`,
+    });
     this.refreshBlockedStates();
     return { task, canRetry };
   }
@@ -343,6 +493,13 @@ export class CollaborationCoordinator {
     };
     this.handoffs.push(record);
     toTask.handoffNotes.push(`From ${fromTask.assignedSpecialist} (${fromTaskId}): ${notes}`);
+    this.sendMessage({
+      fromSpecialist: fromTask.assignedSpecialist,
+      toSpecialist: toTask.assignedSpecialist,
+      taskId: toTaskId,
+      kind: 'HANDOFF',
+      payload: notes,
+    });
     return record;
   }
 
@@ -424,6 +581,93 @@ export function createStandardCrazyPipeline(
       'Every requirement tagged VERIFIED, PARTIALLY_VERIFIED, UNVERIFIED, or FAILED with evidence',
       'No fabricated test claims or missing evidence',
     ],
+  });
+
+  return coord;
+}
+
+/**
+ * Intelligently decomposes a user goal into minimal required specialist TaskContracts
+ * with explicit dependencies and independent CRAZY QA verification.
+ */
+export function decomposeGoalIntoTasks(
+  goal: string,
+  context: SharedProjectContext,
+): CollaborationCoordinator {
+  const lower = goal.toLowerCase();
+  const needsBlenderOr3D =
+    /\b(?:blender|\.blend|geometry nodes|3d asset|fbx|gltf|glb|pbr|shader|render|rigging|animation)\b/.test(
+      lower,
+    );
+  const needsGameDesign =
+    /\b(?:game|gameplay|rpg|open-world|sandbox|survival|strategy|multiplayer|quest|economy|npc|combat)\b/.test(
+      lower,
+    );
+  const needsCode =
+    /\b(?:code|implement|script|build|api|refactor|ecs|physics|shader|python|typescript|c\+\+|rust|c#|gdscript)\b/.test(
+      lower,
+    ) ||
+    needsGameDesign ||
+    needsBlenderOr3D;
+
+  if (needsGameDesign && needsBlenderOr3D && needsCode) {
+    return createStandardCrazyPipeline(context);
+  }
+
+  const coord = new CollaborationCoordinator(context);
+  const qaDeps: string[] = [];
+
+  if (needsGameDesign) {
+    coord.addTask({
+      id: 'T1-DESIGN-PLAN',
+      assignedSpecialist: 'crazymaker',
+      objective: `Specify mechanics, system dependencies, and acceptance tests for: ${goal}`,
+      requiredInputs: ['User Goal', 'Engine Profile'],
+      expectedOutputs: ['Technical Specification', 'Acceptance Criteria'],
+      dependencies: [],
+      acceptanceCriteria: ['Clear inputs, outputs, and testable invariants'],
+    });
+    qaDeps.push('T1-DESIGN-PLAN');
+  }
+
+  if (needsBlenderOr3D) {
+    coord.addTask({
+      id: 'T2-VISUAL-3D-PIPELINE',
+      assignedSpecialist: 'crazydesigner',
+      objective: `Create, render, inspect, and export validated visual/3D assets for: ${goal}`,
+      requiredInputs: qaDeps.includes('T1-DESIGN-PLAN') ? ['Technical Specification'] : ['User Goal'],
+      expectedOutputs: ['Visual Assets / Blender Script', 'Exported Asset Report', 'Render Inspection Notes'],
+      dependencies: qaDeps.includes('T1-DESIGN-PLAN') ? ['T1-DESIGN-PLAN'] : [],
+      acceptanceCriteria: [
+        'Blender availability detected cleanly',
+        'Visual iteration (Create->Render->Inspect->Diagnose->Improve) logged',
+      ],
+    });
+    qaDeps.push('T2-VISUAL-3D-PIPELINE');
+  }
+
+  if (needsCode) {
+    const codeDeps = [...qaDeps];
+    coord.addTask({
+      id: 'T3-IMPLEMENTATION',
+      assignedSpecialist: 'crazycoder',
+      objective: `Implement modular, tested ${context.engine} software/systems for: ${goal}`,
+      requiredInputs: codeDeps.length > 0 ? ['Upstream Specifications'] : ['User Goal'],
+      expectedOutputs: ['Source Code', 'Unit Tests'],
+      dependencies: codeDeps,
+      acceptanceCriteria: ['No foreign engine APIs', 'Zero hardcoded secrets', 'Unit tests pass'],
+    });
+    qaDeps.push('T3-IMPLEMENTATION');
+  }
+
+  coord.addTask({
+    id: 'T4-QA-VERIFICATION',
+    assignedSpecialist: 'crazyqa',
+    objective: 'Run static, security, test, build, and visual/asset verification with strict status reporting.',
+    requiredInputs: qaDeps.length > 0 ? ['Task Outputs'] : ['Workspace State'],
+    expectedOutputs: ['VERIFICATION_REPORT.md'],
+    dependencies: qaDeps,
+    acceptanceCriteria: ['Every claim backed by real command/artifact evidence or marked UNVERIFIED'],
   });
 
   return coord;

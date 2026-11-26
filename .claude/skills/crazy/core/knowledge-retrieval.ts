@@ -3,6 +3,12 @@ import path from 'node:path';
 import type { CoreSpecialistId } from './collaboration.ts';
 import type { EngineId } from './engine-profiles.ts';
 
+export type KnowledgeSourceType =
+  | 'official-spec'
+  | 'engine-profile'
+  | 'framework-guide'
+  | 'community-pattern';
+
 export interface KnowledgeDocEntry {
   id: string;
   path: string;
@@ -13,6 +19,10 @@ export interface KnowledgeDocEntry {
   tags: string[];
   dependencies: string[];
   estimatedTokens: number;
+  sourceType?: KnowledgeSourceType;
+  sourceOrigin?: string;
+  verifiedForVersion?: string;
+  lastVerifiedDate?: string;
 }
 
 export interface KnowledgeRetrievalQuery {
@@ -21,11 +31,14 @@ export interface KnowledgeRetrievalQuery {
   engine?: EngineId;
   maxTokenBudget?: number;
   maxDocs?: number;
+  preferOfficialSources?: boolean;
 }
 
 export interface RetrievedKnowledgeDoc {
   entry: KnowledgeDocEntry;
   relevanceScore: number;
+  sourceType: KnowledgeSourceType;
+  provenanceStatus: 'SOURCE_BACKED' | 'FRAMEWORK_REFERENCE';
   includedDependencyOf?: string;
 }
 
@@ -35,6 +48,22 @@ export interface KnowledgeRetrievalResult {
   totalCatalogTokens: number;
   tokenSavingsPercent: number;
   skippedForBudget: string[];
+  duplicatesRemoved: number;
+  cacheHit: boolean;
+}
+
+export interface OutdatedDocFinding {
+  id: string;
+  path: string;
+  reason: string;
+}
+
+const indexCache = new Map<string, KnowledgeDocEntry[]>();
+const queryCache = new Map<string, KnowledgeRetrievalResult>();
+
+export function clearKnowledgeCache(): void {
+  indexCache.clear();
+  queryCache.clear();
 }
 
 function estimateTokens(text: string): number {
@@ -49,62 +78,125 @@ function tokenizeQuery(text: string): string[] {
     .filter((w) => w.length >= 2);
 }
 
-export function loadKnowledgeIndex(rootDir: string): KnowledgeDocEntry[] {
-  const indexPath = path.join(rootDir, 'references', 'index.json');
+function inferSourceType(entry: KnowledgeDocEntry): KnowledgeSourceType {
+  if (entry.sourceType) return entry.sourceType;
+  if (entry.id.startsWith('engines/')) return 'engine-profile';
+  return 'framework-guide';
+}
+
+export function loadKnowledgeIndex(rootDir: string, useCache = true): KnowledgeDocEntry[] {
+  const absRoot = path.resolve(rootDir);
+  if (useCache && indexCache.has(absRoot)) {
+    return indexCache.get(absRoot)!;
+  }
+
+  const indexPath = path.join(absRoot, 'references', 'index.json');
+  let docs: KnowledgeDocEntry[] = [];
   if (fs.existsSync(indexPath)) {
     const parsed = JSON.parse(fs.readFileSync(indexPath, 'utf8')) as {
       documents: KnowledgeDocEntry[];
     };
-    return parsed.documents;
+    docs = parsed.documents;
+  } else {
+    const refsDir = path.join(absRoot, 'references');
+    if (fs.existsSync(refsDir)) {
+      const walk = (dir: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            walk(full);
+          } else if (entry.name.endsWith('.md')) {
+            const rel = path.relative(absRoot, full).replace(/\\/g, '/');
+            const content = fs.readFileSync(full, 'utf8');
+            const titleLine = content.split(/\r?\n/)[0]?.replace(/^#\s*/, '').trim() || entry.name;
+            docs.push({
+              id: rel.replace(/^references\//, '').replace(/\.md$/, ''),
+              path: rel,
+              title: titleLine,
+              version: '3.0.0',
+              specialists: ['crazymaker', 'crazydesigner', 'crazycoder', 'crazyqa'],
+              engines: ['all'],
+              tags: tokenizeQuery(`${rel} ${titleLine}`),
+              dependencies: [],
+              estimatedTokens: estimateTokens(content),
+              sourceType: rel.includes('/engines/') ? 'engine-profile' : 'framework-guide',
+            });
+          }
+        }
+      };
+      walk(refsDir);
+    }
   }
 
-  // Fallback automatic scan if index.json has not been generated yet
-  const refsDir = path.join(rootDir, 'references');
-  const entries: KnowledgeDocEntry[] = [];
-  if (!fs.existsSync(refsDir)) return entries;
+  if (useCache) indexCache.set(absRoot, docs);
+  return docs;
+}
 
-  const walk = (dir: string) => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (entry.name.endsWith('.md')) {
-        const rel = path.relative(rootDir, full).replace(/\\/g, '/');
-        const content = fs.readFileSync(full, 'utf8');
-        const titleLine = content.split(/\r?\n/)[0]?.replace(/^#\s*/, '').trim() || entry.name;
-        entries.push({
-          id: rel.replace(/^references\//, '').replace(/\.md$/, ''),
-          path: rel,
-          title: titleLine,
-          version: '2.0.0',
-          specialists: ['crazymaker', 'crazydesigner', 'crazycoder', 'crazyqa'],
-          engines: ['all'],
-          tags: tokenizeQuery(`${rel} ${titleLine}`),
-          dependencies: [],
-          estimatedTokens: estimateTokens(content),
-        });
+export function detectOutdatedKnowledgeDocs(
+  catalog: KnowledgeDocEntry[],
+  referenceDateIso = new Date().toISOString().slice(0, 10),
+  maxAgeDays = 365,
+): OutdatedDocFinding[] {
+  const refMs = Date.parse(referenceDateIso);
+  const findings: OutdatedDocFinding[] = [];
+
+  for (const doc of catalog) {
+    if (doc.version.startsWith('1.')) {
+      findings.push({
+        id: doc.id,
+        path: doc.path,
+        reason: `Outdated major doc version "${doc.version}" (expected >= 2.0.0).`,
+      });
+      continue;
+    }
+    if (doc.lastVerifiedDate) {
+      const docMs = Date.parse(doc.lastVerifiedDate);
+      if (!Number.isNaN(docMs) && !Number.isNaN(refMs)) {
+        const ageDays = (refMs - docMs) / (1000 * 60 * 60 * 24);
+        if (ageDays > maxAgeDays) {
+          findings.push({
+            id: doc.id,
+            path: doc.path,
+            reason: `Last verified ${Math.round(ageDays)} days ago (> ${maxAgeDays} days threshold).`,
+          });
+        }
       }
     }
-  };
-  walk(refsDir);
-  return entries;
+  }
+  return findings;
 }
 
 export function retrieveTaskKnowledge(
   rootDir: string,
   params: KnowledgeRetrievalQuery,
 ): KnowledgeRetrievalResult {
-  const catalog = loadKnowledgeIndex(rootDir);
+  const absRoot = path.resolve(rootDir);
+  const cacheKey = JSON.stringify({
+    absRoot,
+    q: params.query,
+    s: params.specialist ?? '',
+    e: params.engine ?? '',
+    b: params.maxTokenBudget ?? 6500,
+    m: params.maxDocs ?? 4,
+    o: params.preferOfficialSources ?? true,
+  });
+
+  const cached = queryCache.get(cacheKey);
+  if (cached) {
+    return { ...cached, cacheHit: true };
+  }
+
+  const catalog = loadKnowledgeIndex(absRoot);
   const byId = new Map(catalog.map((d) => [d.id, d]));
   const totalCatalogTokens = catalog.reduce((sum, d) => sum + d.estimatedTokens, 0);
 
   const maxTokenBudget = params.maxTokenBudget ?? 6500;
   const maxDocs = params.maxDocs ?? 4;
+  const preferOfficial = params.preferOfficialSources ?? true;
   const qTokens = tokenizeQuery(params.query);
 
   const scored = catalog
     .map((entry) => {
-      // Filter incompatible engine-specific docs when an engine is explicitly selected
       if (
         params.engine &&
         !entry.engines.includes('all') &&
@@ -119,6 +211,12 @@ export function retrieveTaskKnowledge(
       }
       if (params.engine && entry.engines.includes(params.engine)) {
         score += 4;
+      }
+
+      const sourceType = inferSourceType(entry);
+      if (preferOfficial) {
+        if (sourceType === 'official-spec') score += 2;
+        else if (sourceType === 'engine-profile') score += 1.5;
       }
 
       const searchable = new Set([
@@ -138,21 +236,34 @@ export function retrieveTaskKnowledge(
 
   const selected: RetrievedKnowledgeDoc[] = [];
   const selectedIds = new Set<string>();
+  const seenTitles = new Set<string>();
   const skippedForBudget: string[] = [];
+  let duplicatesRemoved = 0;
   let usedTokens = 0;
 
   const tryAdd = (entry: KnowledgeDocEntry, relevanceScore: number, depOf?: string) => {
-    if (selectedIds.has(entry.id)) return;
+    const normTitle = entry.title.trim().toLowerCase();
+    if (selectedIds.has(entry.id) || seenTitles.has(normTitle)) {
+      duplicatesRemoved += 1;
+      return;
+    }
     if (selected.length >= maxDocs && !depOf) return;
     if (usedTokens + entry.estimatedTokens > maxTokenBudget) {
       skippedForBudget.push(entry.id);
       return;
     }
     selectedIds.add(entry.id);
+    seenTitles.add(normTitle);
     usedTokens += entry.estimatedTokens;
+    const sourceType = inferSourceType(entry);
     selected.push({
       entry,
       relevanceScore,
+      sourceType,
+      provenanceStatus:
+        sourceType === 'official-spec' || sourceType === 'engine-profile'
+          ? 'SOURCE_BACKED'
+          : 'FRAMEWORK_REFERENCE',
       includedDependencyOf: depOf,
     });
 
@@ -160,11 +271,23 @@ export function retrieveTaskKnowledge(
       const depEntry = byId.get(depId);
       if (depEntry && !selectedIds.has(depId)) {
         if (usedTokens + depEntry.estimatedTokens <= maxTokenBudget) {
+          const depNorm = depEntry.title.trim().toLowerCase();
+          if (seenTitles.has(depNorm)) {
+            duplicatesRemoved += 1;
+            continue;
+          }
           selectedIds.add(depEntry.id);
+          seenTitles.add(depNorm);
           usedTokens += depEntry.estimatedTokens;
+          const depSource = inferSourceType(depEntry);
           selected.push({
             entry: depEntry,
             relevanceScore: Math.max(1, relevanceScore - 0.5),
+            sourceType: depSource,
+            provenanceStatus:
+              depSource === 'official-spec' || depSource === 'engine-profile'
+                ? 'SOURCE_BACKED'
+                : 'FRAMEWORK_REFERENCE',
             includedDependencyOf: entry.id,
           });
         }
@@ -182,11 +305,15 @@ export function retrieveTaskKnowledge(
       ? 0
       : Math.max(0, Math.round(((totalCatalogTokens - usedTokens) / totalCatalogTokens) * 100));
 
-  return {
+  const result: KnowledgeRetrievalResult = {
     selected,
     totalTokensLoaded: usedTokens,
     totalCatalogTokens,
     tokenSavingsPercent: savings,
     skippedForBudget,
+    duplicatesRemoved,
+    cacheHit: false,
   };
+  queryCache.set(cacheKey, result);
+  return result;
 }

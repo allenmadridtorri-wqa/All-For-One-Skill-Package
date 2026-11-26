@@ -2,6 +2,25 @@
 
 All notable changes to the **All-For-One Skill Package** are documented in this file.
 
+## [3.0.0] — V3 Advanced Engineering Upgrade
+
+### Added
+- **Security Hardening Module (`core/security.ts`)**: Added symlink-aware `assertSafeSubpathSync`, temp-sibling `atomicWriteFileSync`, exclusive `wx` lockfiles (`withAdvisoryLock`), `redactSecrets` / `scanForSecrets` (API keys, Bearer tokens, PEM blocks, DB URIs), `assertDestructiveApproved`, and `isDangerousShellCommand`.
+- **Engineering Intelligence (`core/engineering-intelligence.ts`)**: Extended architecture, multi-manifest dependency analysis (`package.json`, `Cargo.toml`, `CMakeLists.txt`, `.csproj`, `project.godot`, `.uproject`), deprecated/incompatible API checks, error-log diagnosis, and code review across 8 stacks (all 6 game engines + `web-fullstack` + `general-software`).
+- **Headless Blender Automation Bridge (`core/blender-bridge.ts`, `assets/blender/export_engine_asset.py`, `references/blender-automation-pipeline.md`)**: Added safe `detectBlenderInstallation()`, sandboxed CLI execution (`--background --factory-startup --python-exit-code 1`), and hardware-bounded `bpy` script generation (metric scale, Geometry Nodes, Principled BSDF, 3-point lighting, optional Rigify/physics, Cycles/EEVEE, FBX/GLB export). Marks Blender steps `UNVERIFIED` when absent.
+- **Game-Engine Asset Pipeline Validation (`core/asset-pipeline.ts`, `references/game-engine-asset-pipelines.md`)**: Added `ENGINE_ASSET_EXPORT_SPECS` and binary GLB/glTF/FBX validation (`validateExportedAsset` checking meshes, UVs, normals, materials, skins, animations, and non-unit scales).
+- **Visual Iteration Controller (`core/visual-iteration.ts`)**: Enforces `Create -> Render -> Inspect -> Diagnose -> Improve -> Re-render`, validates PNG/JPEG/WEBP file signatures, rejects existence-only claims as `PARTIALLY_VERIFIED`, and preserves highest-scoring verified renders.
+- **Model Adapter Abstraction (`core/model-adapter.ts`)**: Added zero-cost `OfflineDeterministicAdapter` default and optional `ConfigurableModelAdapter` (`local-http` / `env-configured`) with graceful offline fallback.
+- **13-Domain V3 Evaluation Suite (`evals/suite-v3.json`, `scripts/v3-framework.test.ts`)**: Added 39 V3 benchmark cases (159 total cases with V2 baseline) and 10 V3 unit/integration test suites.
+- **V3 Documentation**: Added `SECURITY_AUDIT.md`, `MIGRATION_V2_TO_V3.md`, and `docs/BLENDER_AND_ASSET_PIPELINES.md`; updated `README.md` and `VERIFICATION_REPORT.md`.
+
+### Changed
+- **Installer Integrity & Guards (`core/installer-engine.mjs`, `scripts/install.mjs`, `install.sh`, `install.ps1`)**: Added symlink escape blocking, atomic writes, `.afo-install.lock` locking, SHA-256 `verifyInstallIntegrity` (`--verify`), `detectExternalTools` (`--check-tools`), and explicit `--yes` approval gating for `--force`.
+- **Inter-Agent Collaboration (`core/collaboration.ts`)**: Added `AgentMessage` exchange (`REVIEW_FEEDBACK`, `FAILURE_ESCALATION`, `HANDOFF`), `raiseConflict` / `resolveConflict`, `registerArtifact`, and `decomposeGoalIntoTasks`.
+- **Corruption-Protected & Secret-Scrubbed Memory (`core/production-memory.ts`, `core/production-intelligence.ts`)**: Added automatic secret scrubbing, `.afo-memory-state.json` SHA-256 checksums (`verifyIntegrity()`), `recordSuccessPattern`, `preserveKnownGoodOutput`, `getRecurringProblems`, and hardware-clamped `runBoundedSchedule`.
+- **Provenance-Aware Knowledge Retrieval (`core/knowledge-retrieval.ts`, `references/index.json`)**: Expanded catalog to 25 documents (`version: 3.0.0`), added `official-spec` / `engine-profile` weighting, deduplication, outdated-reference detection, and query caching.
+- **All 5 Specialist Skills (`skills/*/SKILL.md`), `manifest.yaml`, `package.json`, `scripts/afo.ts`**: Upgraded to `3.0.0` and set default ZIP output to `release/All-For-One-Skill-Package-V3.zip`.
+
 ## [2.0.0] — V2 Engineering Upgrade
 
 ### Added

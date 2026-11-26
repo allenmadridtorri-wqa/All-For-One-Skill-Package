@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -7,11 +8,12 @@ export const FRONTIER_TARGETS = ['claude', 'antigravity', 'chatgpt'];
 export const SKILL_COMMANDS = ['crazy', 'crazydesigner', 'crazymaker', 'crazycoder', 'crazyqa'];
 
 /**
- * Validates that `candidatePath` resolves strictly inside `allowedBaseDir`
- * and contains no null bytes or traversal segments.
+ * Validates that `candidatePath` resolves strictly inside `allowedBaseDir`,
+ * contains no null bytes or traversal segments, and has no existing symlink
+ * pointing outside `allowedBaseDir`.
  */
 export function assertSafeSubpath(baseDir, candidatePath) {
-  if (typeof candidatePath !== 'string' || candidatePath.includes('\0')) {
+  if (typeof candidatePath !== 'string' || candidatePath.trim() === '' || candidatePath.includes('\0')) {
     throw new Error(`Unsafe path rejected: invalid characters in "${String(candidatePath)}"`);
   }
   const resolvedBase = path.resolve(baseDir);
@@ -21,7 +23,89 @@ export function assertSafeSubpath(baseDir, candidatePath) {
       `Path traversal blocked: "${candidatePath}" resolves outside "${resolvedBase}"`,
     );
   }
+
+  const realBase = fs.existsSync(resolvedBase) ? fs.realpathSync(resolvedBase) : resolvedBase;
+  const rel = path.relative(resolvedBase, resolvedTarget);
+  if (rel) {
+    let cursor = resolvedBase;
+    for (const seg of rel.split(path.sep)) {
+      cursor = path.join(cursor, seg);
+      if (fs.existsSync(cursor)) {
+        const stat = fs.lstatSync(cursor);
+        if (stat.isSymbolicLink()) {
+          const realLink = fs.realpathSync(cursor);
+          if (realLink !== realBase && !realLink.startsWith(realBase + path.sep)) {
+            throw new Error(
+              `Symlink escape blocked: "${cursor}" points to "${realLink}" outside "${realBase}"`,
+            );
+          }
+        }
+      }
+    }
+  }
+
   return resolvedTarget;
+}
+
+function atomicWriteFileSync(targetPath, data) {
+  const dir = path.dirname(targetPath);
+  fs.mkdirSync(dir, { recursive: true });
+  const tempPath = path.join(
+    dir,
+    `.${path.basename(targetPath)}.tmp-${process.pid}-${crypto.randomBytes(4).toString('hex')}`,
+  );
+  try {
+    fs.writeFileSync(tempPath, data);
+    fs.renameSync(tempPath, targetPath);
+  } catch (err) {
+    if (fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+    throw err;
+  }
+}
+
+function withInstallLock(lockPath, dryRun, fn) {
+  if (dryRun) return fn();
+  fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+  try {
+    const fd = fs.openSync(lockPath, 'wx');
+    fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, createdAt: Date.now() }));
+    fs.closeSync(fd);
+  } catch (err) {
+    if (err && err.code === 'EEXIST') {
+      try {
+        const stat = fs.statSync(lockPath);
+        if (Date.now() - stat.mtimeMs > 30_000) {
+          fs.unlinkSync(lockPath);
+          const fd = fs.openSync(lockPath, 'wx');
+          fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, createdAt: Date.now() }));
+          fs.closeSync(fd);
+        } else {
+          throw new Error(`Another installation operation holds lock "${lockPath}".`);
+        }
+      } catch (inner) {
+        if (inner && String(inner.message).includes('holds lock')) throw inner;
+        throw new Error(`Another installation operation holds lock "${lockPath}".`);
+      }
+    } else {
+      throw err;
+    }
+  }
+
+  try {
+    return fn();
+  } finally {
+    try {
+      if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
 }
 
 /**
@@ -268,6 +352,8 @@ export function safeInstall({
   homeDir = os.homedir(),
   dryRun = false,
   force = false,
+  requireApprovalForForce = false,
+  destructiveApproval = undefined,
   simulateFailureAtIndex = -1,
 }) {
   const plan = buildInstallFilePlan({ sourceRoot, targetRoot, target, global, homeDir });
@@ -310,89 +396,98 @@ export function safeInstall({
     for (const d of missing) createdDirs.push(d);
   };
 
-  try {
-    for (let i = 0; i < plan.plannedFiles.length; i++) {
-      if (simulateFailureAtIndex === i) {
-        throw new Error(`Simulated write failure at file index ${i}`);
-      }
+  const lockPath = assertSafeSubpath(plan.resolvedTargetRoot, '.afo-install.lock');
+  if (force && dryRun === false && requireApprovalForForce && !destructiveApproval?.approved) {
+    throw new Error('Destructive force overwrite requires explicit destructiveApproval.approved = true.');
+  }
 
-      const item = plan.plannedFiles[i];
-      const nextHash = sha256Buffer(item.content);
-      const relKey = item.relToBase.replace(/\\/g, '/');
-      const exists = fs.existsSync(item.destPath);
-
-      if (!exists) {
-        actions.push({ action: 'create', path: item.destPath, rel: relKey, target: item.target });
-        nextOwnedFiles[relKey] = nextHash;
-        if (!dryRun) {
-          ensureDirTracked(path.dirname(item.destPath));
-          fs.writeFileSync(item.destPath, item.content);
-          createdFiles.push(item.destPath);
+  return withInstallLock(lockPath, dryRun, () => {
+    try {
+      for (let i = 0; i < plan.plannedFiles.length; i++) {
+        if (simulateFailureAtIndex === i) {
+          throw new Error(`Simulated write failure at file index ${i}`);
         }
-        continue;
-      }
 
-      // Check existing content
-      const currentBytes = fs.readFileSync(item.destPath);
-      const currentHash = sha256Buffer(currentBytes);
+        const item = plan.plannedFiles[i];
+        const nextHash = sha256Buffer(item.content);
+        const relKey = item.relToBase.replace(/\\/g, '/');
+        const exists = fs.existsSync(item.destPath);
 
-      if (currentHash === nextHash) {
-        actions.push({ action: 'unchanged', path: item.destPath, rel: relKey, target: item.target });
-        nextOwnedFiles[relKey] = nextHash;
-        continue;
-      }
+        if (!exists) {
+          actions.push({ action: 'create', path: item.destPath, rel: relKey, target: item.target });
+          nextOwnedFiles[relKey] = nextHash;
+          if (!dryRun) {
+            ensureDirTracked(path.dirname(item.destPath));
+            atomicWriteFileSync(item.destPath, item.content);
+            createdFiles.push(item.destPath);
+          }
+          continue;
+        }
 
-      const recordedHash = previousHashes[relKey];
-      const isUserModified = !recordedHash || currentHash !== recordedHash;
+        // Check existing content (also checks symlink safety if pre-existing)
+        if (fs.lstatSync(item.destPath).isSymbolicLink()) {
+          assertSafeSubpath(item.baseDir, path.relative(item.baseDir, item.destPath));
+        }
+        const currentBytes = fs.readFileSync(item.destPath);
+        const currentHash = sha256Buffer(currentBytes);
 
-      if (isUserModified && !force) {
+        if (currentHash === nextHash) {
+          actions.push({ action: 'unchanged', path: item.destPath, rel: relKey, target: item.target });
+          nextOwnedFiles[relKey] = nextHash;
+          continue;
+        }
+
+        const recordedHash = previousHashes[relKey];
+        const isUserModified = !recordedHash || currentHash !== recordedHash;
+
+        if (isUserModified && !force) {
+          actions.push({
+            action: 'skip-user-modified',
+            path: item.destPath,
+            rel: relKey,
+            target: item.target,
+          });
+          continue;
+        }
+
+        const backupPath = assertSafeSubpath(backupRoot, relKey);
         actions.push({
-          action: 'skip-user-modified',
+          action: force && isUserModified ? 'force-replace-with-backup' : 'update-with-backup',
           path: item.destPath,
           rel: relKey,
+          backupPath,
           target: item.target,
         });
-        continue;
+        nextOwnedFiles[relKey] = nextHash;
+
+        if (!dryRun) {
+          ensureDirTracked(path.dirname(backupPath));
+          fs.copyFileSync(item.destPath, backupPath);
+          backedUpFiles.push({ destPath: item.destPath, backupPath });
+          atomicWriteFileSync(item.destPath, item.content);
+        }
       }
 
-      const backupPath = assertSafeSubpath(backupRoot, relKey);
-      actions.push({
-        action: force && isUserModified ? 'force-replace-with-backup' : 'update-with-backup',
-        path: item.destPath,
-        rel: relKey,
-        backupPath,
-        target: item.target,
-      });
-      nextOwnedFiles[relKey] = nextHash;
+      const lockPayload = {
+        package: 'all-for-one',
+        version: '3.0.0',
+        scope: global ? 'global' : 'workspace',
+        targets: plan.targets,
+        commands: plan.availableCommands,
+        syncedAt: new Date().toISOString(),
+        ownedFiles: nextOwnedFiles,
+      };
 
       if (!dryRun) {
-        ensureDirTracked(path.dirname(backupPath));
-        fs.copyFileSync(item.destPath, backupPath);
-        backedUpFiles.push({ destPath: item.destPath, backupPath });
-        fs.writeFileSync(item.destPath, item.content);
+        if (fs.existsSync(manifestPath)) {
+          const manifestBackup = assertSafeSubpath(backupRoot, path.basename(manifestPath));
+          ensureDirTracked(path.dirname(manifestBackup));
+          fs.copyFileSync(manifestPath, manifestBackup);
+          backedUpFiles.push({ destPath: manifestPath, backupPath: manifestBackup });
+        }
+        ensureDirTracked(path.dirname(manifestPath));
+        atomicWriteFileSync(manifestPath, JSON.stringify(lockPayload, null, 2) + '\n');
       }
-    }
-
-    const lockPayload = {
-      package: 'all-for-one',
-      version: '2.0.0',
-      scope: global ? 'global' : 'workspace',
-      targets: plan.targets,
-      commands: plan.availableCommands,
-      syncedAt: new Date().toISOString(),
-      ownedFiles: nextOwnedFiles,
-    };
-
-    if (!dryRun) {
-      if (fs.existsSync(manifestPath)) {
-        const manifestBackup = assertSafeSubpath(backupRoot, path.basename(manifestPath));
-        ensureDirTracked(path.dirname(manifestBackup));
-        fs.copyFileSync(manifestPath, manifestBackup);
-        backedUpFiles.push({ destPath: manifestPath, backupPath: manifestBackup });
-      }
-      ensureDirTracked(path.dirname(manifestPath));
-      fs.writeFileSync(manifestPath, JSON.stringify(lockPayload, null, 2) + '\n');
-    }
 
     return {
       ok: true,
@@ -437,6 +532,7 @@ export function safeInstall({
     }
     throw err;
   }
+  });
 }
 
 /**
@@ -508,7 +604,7 @@ export function safeUninstall({
       if (fs.existsSync(manifestPath)) fs.unlinkSync(manifestPath);
     } else {
       manifest.ownedFiles = remainingOwned;
-      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+      atomicWriteFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
     }
   }
 
@@ -521,5 +617,88 @@ export function safeUninstall({
       removed.length === 0
         ? 'No unmodified package-owned files were removed.'
         : `Safely removed ${removed.length} package-owned file(s).`,
+  };
+}
+
+/**
+ * Verifies integrity of installed package files against their recorded SHA-256 manifest.
+ */
+export function verifyInstallIntegrity({
+  targetRoot,
+  global = false,
+  homeDir = os.homedir(),
+}) {
+  const resolvedTargetRoot = validateDestinationRoot(global ? homeDir : targetRoot);
+  const manifestPath = getManifestPath(resolvedTargetRoot, global);
+  const manifest = readExistingManifest(manifestPath);
+  if (!manifest || !manifest.ownedFiles) {
+    return {
+      ok: false,
+      manifestFound: false,
+      verifiedCount: 0,
+      missingFiles: [],
+      modifiedFiles: [],
+      message: `No installation manifest found at ${manifestPath}`,
+    };
+  }
+
+  let verifiedCount = 0;
+  const missingFiles = [];
+  const modifiedFiles = [];
+
+  for (const [relKey, expectedHash] of Object.entries(manifest.ownedFiles)) {
+    const absPath = assertSafeSubpath(resolvedTargetRoot, relKey);
+    if (!fs.existsSync(absPath)) {
+      missingFiles.push(relKey);
+      continue;
+    }
+    const actualHash = sha256Buffer(fs.readFileSync(absPath));
+    if (actualHash !== expectedHash) {
+      modifiedFiles.push(relKey);
+    } else {
+      verifiedCount += 1;
+    }
+  }
+
+  const ok = missingFiles.length === 0 && modifiedFiles.length === 0;
+  return {
+    ok,
+    manifestFound: true,
+    verifiedCount,
+    missingFiles,
+    modifiedFiles,
+    message: ok
+      ? `Integrity verified: ${verifiedCount} owned file(s) match SHA-256 manifest.`
+      : `Integrity drift detected: ${missingFiles.length} missing, ${modifiedFiles.length} modified.`,
+  };
+}
+
+/**
+ * Detects external optional dependencies (never auto-installs anything).
+ */
+export function detectExternalTools() {
+  const probe = (bin, args) => {
+    try {
+      const output = execFileSync(bin, args, {
+        encoding: 'utf8',
+        timeout: 3000,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim();
+      return {
+        available: true,
+        version: output.split(/\r?\n/)[0] || 'detected',
+      };
+    } catch {
+      return {
+        available: false,
+        version: null,
+      };
+    }
+  };
+
+  return {
+    node: { required: true, ...probe(process.execPath, ['--version']) },
+    git: { required: false, ...probe('git', ['--version']) },
+    blender: { required: false, ...probe('blender', ['--version']) },
   };
 }

@@ -1,12 +1,12 @@
 name: all-for-one
-displayName: "All-For-One — AI Game Development Engineering Framework"
-version: 2.0.0
+displayName: "All-For-One V3 — AI Game & Software Engineering Framework"
+version: 3.0.0
 license: Apache-2.0
 description: >-
-  Engine-aware multi-specialist AI game development framework coordinating
-  CRAZYMAKER (Game Director), CRAZYDESIGNER (Visual Director), CRAZY CODER
-  (Engineering Director), and CRAZY QA (Quality Assurance Director) via /crazy
-  across Claude, Google Antigravity, and ChatGPT/Codex.
+  Engine-aware multi-specialist AI engineering framework coordinating CRAZY
+  (Orchestrator), CRAZYMAKER (Implementation & Game Design), CRAZYDESIGNER
+  (Visual, Blender 3D & Asset Pipelines), CRAZYCODER (Engineering & Debugging),
+  and CRAZYQA (Independent QA & Security) across Claude, Antigravity, and ChatGPT/Codex.
 
 commands:
   - name: crazy
@@ -14,16 +14,16 @@ commands:
     role: "Unified Multi-Specialist Orchestrator"
   - name: crazymaker
     skill: skills/crazymaker/SKILL.md
-    role: "Game Director"
+    role: "Game Director & Technical Producer"
   - name: crazydesigner
     skill: skills/crazydesigner/SKILL.md
-    role: "Visual Director"
+    role: "Visual, 3D & Blender Production Director"
   - name: crazycoder
     skill: skills/crazycoder/SKILL.md
     role: "Engineering Director"
   - name: crazyqa
     skill: skills/crazyqa/SKILL.md
-    role: "Quality Assurance Director"
+    role: "Independent Quality Assurance & Security Director"
 
 supportedEngines:
   - unreal5
@@ -32,6 +32,8 @@ supportedEngines:
   - threejs
   - cpp-native
   - rust
+  - web-fullstack
+  - general-software
 
 extensionHooks:
   - audio_engineering

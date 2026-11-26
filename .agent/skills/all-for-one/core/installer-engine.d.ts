@@ -11,6 +11,8 @@ export interface InstallOptions {
   homeDir?: string;
   dryRun?: boolean;
   force?: boolean;
+  requireApprovalForForce?: boolean;
+  destructiveApproval?: { approved: boolean; actor: string; reason: string };
   simulateFailureAtIndex?: number;
 }
 
@@ -55,7 +57,28 @@ export interface UninstallResult {
   message: string;
 }
 
+export interface IntegrityReport {
+  ok: boolean;
+  manifestFound: boolean;
+  verifiedCount: number;
+  missingFiles: string[];
+  modifiedFiles: string[];
+  message: string;
+}
+
+export interface ExternalToolsReport {
+  node: { required: boolean; available: boolean; version: string | null };
+  git: { required: boolean; available: boolean; version: string | null };
+  blender: { required: boolean; available: boolean; version: string | null };
+}
+
 export function assertSafeSubpath(baseDir: string, candidatePath: string): string;
 export function validateDestinationRoot(destRoot: string): string;
 export function safeInstall(options: InstallOptions): InstallResult;
 export function safeUninstall(options: UninstallOptions): UninstallResult;
+export function verifyInstallIntegrity(options: {
+  targetRoot: string;
+  global?: boolean;
+  homeDir?: string;
+}): IntegrityReport;
+export function detectExternalTools(): ExternalToolsReport;

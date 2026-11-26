@@ -247,11 +247,42 @@
       "id": "engines/rust",
       "path": "references/engines/rust.md",
       "title": "Engine Profile: Rust Game Development (Bevy / wgpu)",
-      "version": "2.0.0",
+      "version": "3.0.0",
+      "sourceType": "engine-profile",
+      "verifiedForVersion": "Rust 1.78+ / Bevy 0.14+",
+      "lastVerifiedDate": "2026-11-25",
       "specialists": ["crazycoder", "crazydesigner", "crazyqa"],
       "engines": ["rust"],
       "tags": ["rust", "bevy", "wgpu", "wgsl", "rapier", "clippy", "cargo"],
       "dependencies": [],
+      "estimatedTokens": 480
+    },
+    {
+      "id": "blender-automation-pipeline",
+      "path": "references/blender-automation-pipeline.md",
+      "title": "Blender Automation & Procedural 3D Pipeline (V3)",
+      "version": "3.0.0",
+      "sourceType": "official-spec",
+      "verifiedForVersion": "Blender 4.x bpy",
+      "lastVerifiedDate": "2026-11-25",
+      "specialists": ["crazydesigner", "crazyqa"],
+      "engines": ["all"],
+      "tags": ["blender", "bpy", "geometry-nodes", "cycles", "eevee", "pbr", "render", "visual-iteration"],
+      "dependencies": ["pbr-material-calibration", "visual-production-pipeline"],
+      "estimatedTokens": 450
+    },
+    {
+      "id": "game-engine-asset-pipelines",
+      "path": "references/game-engine-asset-pipelines.md",
+      "title": "Game Engine Asset Pipelines (Blender -> Unreal, Unity, Godot, Three.js)",
+      "version": "3.0.0",
+      "sourceType": "official-spec",
+      "verifiedForVersion": "glTF 2.0 / FBX 7.4",
+      "lastVerifiedDate": "2026-11-25",
+      "specialists": ["crazydesigner", "crazycoder", "crazyqa"],
+      "engines": ["unreal5", "unity", "godot", "threejs", "cpp-native", "rust"],
+      "tags": ["fbx", "gltf", "glb", "uv", "normals", "rig", "scale", "export", "import", "asset-pipeline"],
+      "dependencies": ["blender-automation-pipeline"],
       "estimatedTokens": 480
     }
   ]
